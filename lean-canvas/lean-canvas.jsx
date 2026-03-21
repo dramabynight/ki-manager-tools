@@ -1,7 +1,13 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 
-// Update this to use the latest available Claude model
+// ── Config ────────────────────────────────────────────────────────────────────
+// Update this to switch Claude models
 const CLAUDE_MODEL = "claude-sonnet-4-6";
+
+// DEPLOYMENT MODE
+// false → Claude Artifact: direct API call, no key needed (works inside claude.ai)
+// true  → Standalone app: routes through /api/chat proxy (needs ANTHROPIC_API_KEY env var)
+const USE_PROXY = true;
 
 const GOOGLE_FONT = `@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');`;
 
@@ -151,6 +157,176 @@ const FIELD_COLORS = {
 
 const SYSTEM_PROMPT = `Du bist ein Lean Canvas Coach. Antworte IMMER auf Deutsch. Hilf dem User EIN spezifisches Feld auszufüllen. Stelle 1-2 gezielte, konkrete Fragen. Fülle das Feld NIE selbst aus. Wenn der User antwortet, fasse kurz zusammen und schlage eine knappe, prägnante Formulierung vor (maximal 3-4 Sätze oder Stichpunkte). Formatiere deinen Formulierungsvorschlag mit dem Präfix "💡 Vorschlag:". Halte dich kurz und fokussiert.`;
 
+// ── API helper ────────────────────────────────────────────────────────────────
+async function callClaude(messages, system) {
+  if (USE_PROXY) {
+    const res = await fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ messages, system }),
+    });
+    return res.json();
+  }
+  const res = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ model: CLAUDE_MODEL, max_tokens: 1000, system, messages }),
+  });
+  return res.json();
+}
+
+
+
+// ── FieldCard ─────────────────────────────────────────────────────────────────
+// Defined at MODULE LEVEL — not inside LeanCanvas.
+// Defining a component inside another component causes React to treat it as a
+// new type on every render, unmounting/remounting it and losing textarea focus
+// after each keystroke (the "one character at a time" bug).
+function FieldCard({
+  fieldKey, gridStyle, colors, label, help, contextKey, contextShort,
+  mode, fieldValue, isHelpOpen, isChatOpen, msgs, loading, chatInput,
+  hasSuggestion, chatEndRef,
+  onFieldChange, onToggleHelp, onOpenChat, onSendMessage, onChatInputChange, onAdoptSuggestion,
+}) {
+  return (
+    <div style={{
+      ...gridStyle,
+      background: colors.light,
+      borderRadius: 14,
+      boxShadow: "0 2px 12px rgba(0,0,0,0.07)",
+      display: "flex",
+      flexDirection: "column",
+      overflow: "hidden",
+      border: `1.5px solid ${colors.bg}`,
+      transition: "box-shadow 0.2s",
+    }}>
+      {/* Header */}
+      <div style={{
+        background: colors.header, color: "#fff", padding: "8px 12px",
+        display: "flex", justifyContent: "space-between", alignItems: "center", flexShrink: 0,
+      }}>
+        <span style={{ fontWeight: 600, fontSize: 13, letterSpacing: 0.3 }}>{label}</span>
+        <div style={{ display: "flex", gap: 6 }}>
+          {mode === "guided" && (
+            <button
+              onClick={() => onOpenChat(fieldKey)}
+              title="KI-Coaching öffnen"
+              style={{
+                background: isChatOpen ? "rgba(255,255,255,0.35)" : "rgba(255,255,255,0.18)",
+                border: "none", borderRadius: 6, color: "#fff", fontSize: 13,
+                cursor: "pointer", padding: "2px 7px", fontWeight: 600, transition: "background 0.15s",
+              }}
+            >✨</button>
+          )}
+          <button
+            onClick={() => onToggleHelp(isHelpOpen ? null : fieldKey)}
+            title="Hilfe anzeigen"
+            style={{
+              background: isHelpOpen ? "rgba(255,255,255,0.35)" : "rgba(255,255,255,0.18)",
+              border: "none", borderRadius: 6, color: "#fff", fontSize: 12,
+              cursor: "pointer", padding: "2px 7px", fontWeight: 700, transition: "background 0.15s",
+            }}
+          >?</button>
+        </div>
+      </div>
+
+      {/* Help panel */}
+      {isHelpOpen && (
+        <div style={{
+          background: colors.bg, padding: "10px 12px", fontSize: 12,
+          color: "#4a4a4a", borderBottom: `1px solid ${colors.header}30`, flexShrink: 0,
+        }}>
+          <p style={{ margin: "0 0 4px", fontWeight: 500 }}>{help.explanation}</p>
+          <p style={{ margin: "0 0 4px", color: colors.header, fontStyle: "italic" }}>❓ {help.question}</p>
+          <p style={{ margin: 0, color: "#666" }}>
+            <strong>Beispiel ({contextShort}):</strong> {help.examples[contextKey]}
+          </p>
+        </div>
+      )}
+
+      {/* Textarea */}
+      <textarea
+        value={fieldValue}
+        onChange={(e) => onFieldChange(fieldKey, e.target.value)}
+        placeholder={`${label} beschreiben…`}
+        style={{
+          flex: 1, border: "none", background: "transparent", resize: "none",
+          padding: "10px 12px", fontFamily: "Plus Jakarta Sans, sans-serif",
+          fontSize: 13, color: "#3a3a3a", outline: "none", minHeight: 70, lineHeight: 1.5,
+        }}
+      />
+
+      {/* Chat area */}
+      {isChatOpen && (
+        <div style={{
+          background: "#fff", borderTop: `2px solid ${colors.header}40`,
+          display: "flex", flexDirection: "column", maxHeight: 300, flexShrink: 0,
+        }}>
+          <div style={{
+            flex: 1, overflowY: "auto", padding: "10px 12px",
+            display: "flex", flexDirection: "column", gap: 8, maxHeight: 200,
+          }}>
+            {msgs.length === 0 && loading && (
+              <div style={{ color: "#888", fontSize: 12, fontStyle: "italic" }}>KI-Coach antwortet…</div>
+            )}
+            {msgs.map((msg, i) => (
+              <div key={i} style={{
+                alignSelf: msg.role === "user" ? "flex-end" : "flex-start",
+                background: msg.role === "user" ? colors.header : colors.bg,
+                color: msg.role === "user" ? "#fff" : "#333",
+                borderRadius: msg.role === "user" ? "12px 12px 2px 12px" : "12px 12px 12px 2px",
+                padding: "8px 10px", fontSize: 12, maxWidth: "90%", lineHeight: 1.5, whiteSpace: "pre-wrap",
+              }}>
+                {msg.content}
+              </div>
+            ))}
+            {loading && msgs.length > 0 && (
+              <div style={{ fontSize: 12, color: "#888", fontStyle: "italic" }}>Schreibe…</div>
+            )}
+            <div ref={chatEndRef} />
+          </div>
+
+          {hasSuggestion && (
+            <div style={{ padding: "6px 12px", borderTop: `1px solid ${colors.bg}` }}>
+              <button
+                onClick={() => onAdoptSuggestion(fieldKey)}
+                style={{
+                  background: colors.header, color: "#fff", border: "none", borderRadius: 8,
+                  padding: "5px 12px", fontSize: 12, cursor: "pointer", fontWeight: 600, width: "100%",
+                }}
+              >✅ Vorschlag ins Feld übernehmen</button>
+            </div>
+          )}
+
+          <div style={{ display: "flex", gap: 6, padding: "8px 10px", borderTop: `1px solid ${colors.bg}` }}>
+            <input
+              value={chatInput}
+              onChange={(e) => onChatInputChange(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && onSendMessage(fieldKey)}
+              placeholder="Antworten…"
+              style={{
+                flex: 1, border: `1.5px solid ${colors.bg}`, borderRadius: 8,
+                padding: "6px 10px", fontSize: 12, fontFamily: "Plus Jakarta Sans, sans-serif",
+                outline: "none", background: colors.light, color: "#333",
+              }}
+            />
+            <button
+              onClick={() => onSendMessage(fieldKey)}
+              disabled={loading || !chatInput.trim()}
+              style={{
+                background: colors.header, color: "#fff", border: "none", borderRadius: 8,
+                padding: "6px 12px", fontSize: 13,
+                cursor: loading ? "not-allowed" : "pointer",
+                opacity: loading || !chatInput.trim() ? 0.5 : 1, fontWeight: 600,
+              }}
+            >→</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function LeanCanvas() {
   const [context, setContext] = useState("digital");
   const [mode, setMode] = useState("self"); // "self" | "guided"
@@ -216,17 +392,7 @@ export default function LeanCanvas() {
       setLoading(true);
 
       try {
-        const res = await fetch("https://api.anthropic.com/v1/messages", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            model: CLAUDE_MODEL,
-            max_tokens: 1000,
-            system: SYSTEM_PROMPT,
-            messages: initMsg,
-          }),
-        });
-        const data = await res.json();
+        const data = await callClaude(initMsg, SYSTEM_PROMPT);
         const reply = data.content?.map((b) => b.text || "").join("") || "Fehler beim Laden.";
         setChatMessages((prev) => ({
           ...prev,
@@ -260,17 +426,7 @@ export default function LeanCanvas() {
     ];
 
     try {
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: CLAUDE_MODEL,
-          max_tokens: 1000,
-          system: SYSTEM_PROMPT,
-          messages: apiMessages,
-        }),
-      });
-      const data = await res.json();
+      const data = await callClaude(apiMessages, SYSTEM_PROMPT);
       const reply = data.content?.map((b) => b.text || "").join("") || "Fehler.";
       const updatedMessages = [...newMessages, { role: "assistant", content: reply }];
       setChatMessages((prev) => ({ ...prev, [fieldKey]: updatedMessages }));
@@ -315,212 +471,33 @@ export default function LeanCanvas() {
     setShowClearDialog(false);
   };
 
-  const FieldCard = ({ fieldKey, gridStyle }) => {
-    const colors = FIELD_COLORS[fieldKey];
-    const label = getFieldLabel(fieldKey);
-    const help = FIELD_HELP[fieldKey];
-    const isHelpOpen = helpOpen === fieldKey;
-    const isChatOpen = activeChat === fieldKey && mode === "guided";
-    const msgs = chatMessages[fieldKey] || [];
-
-    return (
-      <div style={{
-        ...gridStyle,
-        background: colors.light,
-        borderRadius: 14,
-        boxShadow: "0 2px 12px rgba(0,0,0,0.07)",
-        display: "flex",
-        flexDirection: "column",
-        overflow: "hidden",
-        border: `1.5px solid ${colors.bg}`,
-        transition: "box-shadow 0.2s",
-      }}>
-        {/* Header */}
-        <div style={{
-          background: colors.header,
-          color: "#fff",
-          padding: "8px 12px",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          flexShrink: 0,
-        }}>
-          <span style={{ fontWeight: 600, fontSize: 13, letterSpacing: 0.3 }}>{label}</span>
-          <div style={{ display: "flex", gap: 6 }}>
-            {mode === "guided" && (
-              <button
-                onClick={() => openChat(fieldKey)}
-                title="KI-Coaching öffnen"
-                style={{
-                  background: isChatOpen ? "rgba(255,255,255,0.35)" : "rgba(255,255,255,0.18)",
-                  border: "none",
-                  borderRadius: 6,
-                  color: "#fff",
-                  fontSize: 13,
-                  cursor: "pointer",
-                  padding: "2px 7px",
-                  fontWeight: 600,
-                  transition: "background 0.15s",
-                }}
-              >✨</button>
-            )}
-            <button
-              onClick={() => setHelpOpen(isHelpOpen ? null : fieldKey)}
-              title="Hilfe anzeigen"
-              style={{
-                background: isHelpOpen ? "rgba(255,255,255,0.35)" : "rgba(255,255,255,0.18)",
-                border: "none",
-                borderRadius: 6,
-                color: "#fff",
-                fontSize: 12,
-                cursor: "pointer",
-                padding: "2px 7px",
-                fontWeight: 700,
-                transition: "background 0.15s",
-              }}
-            >?</button>
-          </div>
-        </div>
-
-        {/* Help panel */}
-        {isHelpOpen && (
-          <div style={{
-            background: colors.bg,
-            padding: "10px 12px",
-            fontSize: 12,
-            color: "#4a4a4a",
-            borderBottom: `1px solid ${colors.header}30`,
-            flexShrink: 0,
-          }}>
-            <p style={{ margin: "0 0 4px", fontWeight: 500 }}>{help.explanation}</p>
-            <p style={{ margin: "0 0 4px", color: colors.header, fontStyle: "italic" }}>❓ {help.question}</p>
-            <p style={{ margin: 0, color: "#666" }}>
-              <strong>Beispiel ({CONTEXTS[context].short}):</strong> {help.examples[context]}
-            </p>
-          </div>
-        )}
-
-        {/* Textarea */}
-        <textarea
-          value={fields[fieldKey] || ""}
-          onChange={(e) => handleFieldChange(fieldKey, e.target.value)}
-          placeholder={`${label} beschreiben…`}
-          style={{
-            flex: 1,
-            border: "none",
-            background: "transparent",
-            resize: "none",
-            padding: "10px 12px",
-            fontFamily: "Plus Jakarta Sans, sans-serif",
-            fontSize: 13,
-            color: "#3a3a3a",
-            outline: "none",
-            minHeight: 70,
-            lineHeight: 1.5,
-          }}
-        />
-
-        {/* Chat area */}
-        {isChatOpen && (
-          <div style={{
-            background: "#fff",
-            borderTop: `2px solid ${colors.header}40`,
-            display: "flex",
-            flexDirection: "column",
-            maxHeight: 300,
-            flexShrink: 0,
-          }}>
-            <div style={{
-              flex: 1,
-              overflowY: "auto",
-              padding: "10px 12px",
-              display: "flex",
-              flexDirection: "column",
-              gap: 8,
-              maxHeight: 200,
-            }}>
-              {msgs.length === 0 && loading && (
-                <div style={{ color: "#888", fontSize: 12, fontStyle: "italic" }}>KI-Coach antwortet…</div>
-              )}
-              {msgs.map((msg, i) => (
-                <div key={i} style={{
-                  alignSelf: msg.role === "user" ? "flex-end" : "flex-start",
-                  background: msg.role === "user" ? colors.header : colors.bg,
-                  color: msg.role === "user" ? "#fff" : "#333",
-                  borderRadius: msg.role === "user" ? "12px 12px 2px 12px" : "12px 12px 12px 2px",
-                  padding: "8px 10px",
-                  fontSize: 12,
-                  maxWidth: "90%",
-                  lineHeight: 1.5,
-                  whiteSpace: "pre-wrap",
-                }}>
-                  {msg.content}
-                </div>
-              ))}
-              {loading && msgs.length > 0 && (
-                <div style={{ fontSize: 12, color: "#888", fontStyle: "italic" }}>Schreibe…</div>
-              )}
-              <div ref={chatEndRef} />
-            </div>
-
-            {suggestion[fieldKey] && (
-              <div style={{ padding: "6px 12px", borderTop: `1px solid ${colors.bg}` }}>
-                <button
-                  onClick={() => adoptSuggestion(fieldKey)}
-                  style={{
-                    background: colors.header,
-                    color: "#fff",
-                    border: "none",
-                    borderRadius: 8,
-                    padding: "5px 12px",
-                    fontSize: 12,
-                    cursor: "pointer",
-                    fontWeight: 600,
-                    width: "100%",
-                  }}
-                >✅ Vorschlag ins Feld übernehmen</button>
-              </div>
-            )}
-
-            <div style={{ display: "flex", gap: 6, padding: "8px 10px", borderTop: `1px solid ${colors.bg}` }}>
-              <input
-                value={chatInput}
-                onChange={(e) => setChatInput(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && sendChatMessage(fieldKey)}
-                placeholder="Antworten…"
-                style={{
-                  flex: 1,
-                  border: `1.5px solid ${colors.bg}`,
-                  borderRadius: 8,
-                  padding: "6px 10px",
-                  fontSize: 12,
-                  fontFamily: "Plus Jakarta Sans, sans-serif",
-                  outline: "none",
-                  background: colors.light,
-                  color: "#333",
-                }}
-              />
-              <button
-                onClick={() => sendChatMessage(fieldKey)}
-                disabled={loading || !chatInput.trim()}
-                style={{
-                  background: colors.header,
-                  color: "#fff",
-                  border: "none",
-                  borderRadius: 8,
-                  padding: "6px 12px",
-                  fontSize: 13,
-                  cursor: loading ? "not-allowed" : "pointer",
-                  opacity: loading || !chatInput.trim() ? 0.5 : 1,
-                  fontWeight: 600,
-                }}
-              >→</button>
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  };
+  const card = (fieldKey, gridStyle) => (
+    <FieldCard
+      key={fieldKey}
+      fieldKey={fieldKey}
+      gridStyle={gridStyle}
+      colors={FIELD_COLORS[fieldKey]}
+      label={getFieldLabel(fieldKey)}
+      help={FIELD_HELP[fieldKey]}
+      contextKey={context}
+      contextShort={CONTEXTS[context].short}
+      mode={mode}
+      fieldValue={fields[fieldKey] || ""}
+      isHelpOpen={helpOpen === fieldKey}
+      isChatOpen={activeChat === fieldKey && mode === "guided"}
+      msgs={chatMessages[fieldKey] || []}
+      loading={loading}
+      chatInput={activeChat === fieldKey ? chatInput : ""}
+      hasSuggestion={!!suggestion[fieldKey]}
+      chatEndRef={activeChat === fieldKey ? chatEndRef : null}
+      onFieldChange={handleFieldChange}
+      onToggleHelp={setHelpOpen}
+      onOpenChat={openChat}
+      onSendMessage={sendChatMessage}
+      onChatInputChange={setChatInput}
+      onAdoptSuggestion={adoptSuggestion}
+    />
+  );
 
   return (
     <div style={{
@@ -641,15 +618,15 @@ export default function LeanCanvas() {
         maxWidth: 1200,
         margin: "0 auto 24px",
       }}>
-        <FieldCard fieldKey="problem" gridStyle={{ gridColumn: "1 / 3", gridRow: "1 / 3", minHeight: 280 }} />
-        <FieldCard fieldKey="solution" gridStyle={{ gridColumn: "3 / 5", gridRow: "1 / 2", minHeight: 130 }} />
-        <FieldCard fieldKey="uvp" gridStyle={{ gridColumn: "5 / 7", gridRow: "1 / 3", minHeight: 280 }} />
-        <FieldCard fieldKey="unfair" gridStyle={{ gridColumn: "7 / 9", gridRow: "1 / 2", minHeight: 130 }} />
-        <FieldCard fieldKey="customers" gridStyle={{ gridColumn: "9 / 11", gridRow: "1 / 3", minHeight: 280 }} />
-        <FieldCard fieldKey="metrics" gridStyle={{ gridColumn: "3 / 5", gridRow: "2 / 3", minHeight: 130 }} />
-        <FieldCard fieldKey="channels" gridStyle={{ gridColumn: "7 / 9", gridRow: "2 / 3", minHeight: 130 }} />
-        <FieldCard fieldKey="costs" gridStyle={{ gridColumn: "1 / 6", gridRow: "3 / 4", minHeight: 110 }} />
-        <FieldCard fieldKey="revenue" gridStyle={{ gridColumn: "6 / 11", gridRow: "3 / 4", minHeight: 110 }} />
+        {card("problem",   { gridColumn: "1 / 3",  gridRow: "1 / 3", minHeight: 280 })}
+        {card("solution",  { gridColumn: "3 / 5",  gridRow: "1 / 2", minHeight: 130 })}
+        {card("uvp",       { gridColumn: "5 / 7",  gridRow: "1 / 3", minHeight: 280 })}
+        {card("unfair",    { gridColumn: "7 / 9",  gridRow: "1 / 2", minHeight: 130 })}
+        {card("customers", { gridColumn: "9 / 11", gridRow: "1 / 3", minHeight: 280 })}
+        {card("metrics",   { gridColumn: "3 / 5",  gridRow: "2 / 3", minHeight: 130 })}
+        {card("channels",  { gridColumn: "7 / 9",  gridRow: "2 / 3", minHeight: 130 })}
+        {card("costs",     { gridColumn: "1 / 6",  gridRow: "3 / 4", minHeight: 110 })}
+        {card("revenue",   { gridColumn: "6 / 11", gridRow: "3 / 4", minHeight: 110 })}
       </div>
 
       {/* Action buttons */}
