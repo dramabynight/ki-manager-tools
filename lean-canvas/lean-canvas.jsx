@@ -162,16 +162,27 @@ function GuidedPanel({
       )}
 
       {/* Input */}
-      <div style={{ display: "flex", gap: 6, padding: "8px 12px", borderTop: `1px solid ${colors.bg}`, flexShrink: 0 }}>
-        <input
+      <div style={{ display: "flex", gap: 6, padding: "8px 12px", borderTop: `1px solid ${colors.bg}`, flexShrink: 0, alignItems: "flex-end" }}>
+        <textarea
           value={chatInput}
-          onChange={(e) => onChatInputChange(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && onSendMessage(currentFieldKey)}
-          placeholder="Antworten…"
+          rows={2}
+          onChange={(e) => {
+            onChatInputChange(e.target.value);
+            e.target.style.height = "auto";
+            e.target.style.height = Math.min(e.target.scrollHeight, 140) + "px";
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              onSendMessage(currentFieldKey);
+            }
+          }}
+          placeholder="Antworten… (Shift+Enter für neue Zeile)"
           style={{
             flex: 1, border: `1.5px solid ${colors.bg}`, borderRadius: 8,
-            padding: "7px 11px", fontSize: 13, fontFamily: "Plus Jakarta Sans, sans-serif",
+            padding: "8px 11px", fontSize: 13, fontFamily: "Plus Jakarta Sans, sans-serif",
             outline: "none", background: "#fff", color: "#333",
+            resize: "none", lineHeight: 1.45, minHeight: 44, maxHeight: 140, overflowY: "auto",
           }}
         />
         <button
@@ -179,8 +190,8 @@ function GuidedPanel({
           disabled={loading || !chatInput.trim()}
           style={{
             background: colors.header, color: "#fff", border: "none", borderRadius: 8,
-            padding: "7px 13px", fontSize: 14, cursor: loading ? "not-allowed" : "pointer",
-            opacity: loading || !chatInput.trim() ? 0.5 : 1, fontWeight: 600,
+            padding: "8px 13px", fontSize: 14, cursor: loading ? "not-allowed" : "pointer",
+            opacity: loading || !chatInput.trim() ? 0.5 : 1, fontWeight: 600, alignSelf: "flex-end", height: 38,
           }}
         >→</button>
       </div>
@@ -563,15 +574,15 @@ export default function LeanCanvas() {
         {/* Canvas grid */}
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(10, 1fr)", gridTemplateRows: "auto auto auto", gap: 12 }}>
-            {card("problem",   { gridColumn: "1 / 3",  gridRow: "1 / 3", minHeight: 280 })}
-            {card("solution",  { gridColumn: "3 / 5",  gridRow: "1 / 2", minHeight: 135 })}
-            {card("uvp",       { gridColumn: "5 / 7",  gridRow: "1 / 3", minHeight: 280 })}
-            {card("unfair",    { gridColumn: "7 / 9",  gridRow: "1 / 2", minHeight: 135 })}
-            {card("customers", { gridColumn: "9 / 11", gridRow: "1 / 3", minHeight: 280 })}
-            {card("metrics",   { gridColumn: "3 / 5",  gridRow: "2 / 3", minHeight: 135 })}
-            {card("channels",  { gridColumn: "7 / 9",  gridRow: "2 / 3", minHeight: 135 })}
-            {card("costs",     { gridColumn: "1 / 6",  gridRow: "3 / 4", minHeight: 130 })}
-            {card("revenue",   { gridColumn: "6 / 11", gridRow: "3 / 4", minHeight: 130 })}
+            {card("problem",   { gridColumn: "1 / 3",  gridRow: "1 / 3", minHeight: 380 })}
+            {card("solution",  { gridColumn: "3 / 5",  gridRow: "1 / 2", minHeight: 185 })}
+            {card("uvp",       { gridColumn: "5 / 7",  gridRow: "1 / 3", minHeight: 380 })}
+            {card("unfair",    { gridColumn: "7 / 9",  gridRow: "1 / 2", minHeight: 185 })}
+            {card("customers", { gridColumn: "9 / 11", gridRow: "1 / 3", minHeight: 380 })}
+            {card("metrics",   { gridColumn: "3 / 5",  gridRow: "2 / 3", minHeight: 185 })}
+            {card("channels",  { gridColumn: "7 / 9",  gridRow: "2 / 3", minHeight: 185 })}
+            {card("costs",     { gridColumn: "1 / 6",  gridRow: "3 / 4", minHeight: 175 })}
+            {card("revenue",   { gridColumn: "6 / 11", gridRow: "3 / 4", minHeight: 175 })}
           </div>
         </div>
 
@@ -591,7 +602,13 @@ export default function LeanCanvas() {
             onSendMessage={sendChatMessage}
             onChatInputChange={setChatInput}
             onAdoptSuggestion={adoptSuggestion}
-            onNext={() => guidedStep < GUIDED_SEQUENCE.length - 1 ? goToStep(guidedStep + 1) : null}
+            onNext={() => {
+              const fk = currentGuidedKey;
+              const hasPending = !!suggestion[fk];
+              const isEmpty = !fields[fk]?.trim();
+              if (hasPending && isEmpty) { adoptSuggestion(fk); return; }
+              if (guidedStep < GUIDED_SEQUENCE.length - 1) goToStep(guidedStep + 1);
+            }}
             onBack={() => guidedStep > 0 ? goToStep(guidedStep - 1) : null}
           />
         )}
