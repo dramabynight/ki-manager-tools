@@ -1,4 +1,8 @@
 import { useState, useEffect, useRef } from "react";
+import {
+  Pencil, Sparkles, Copy, Download, RotateCcw, Check, Info, HelpCircle,
+  ArrowRight, ArrowLeft, Lightbulb, X, Compass,
+} from "lucide-react";
 
 // ── Config ────────────────────────────────────────────────────────────────────
 const CLAUDE_MODEL = "claude-sonnet-4-6";
@@ -54,7 +58,9 @@ REGELN für JEDE Nachricht:
 
 Wenn der User bereits Inhalt im Feld hat: beziehe dich KONKRET auf diesen Inhalt mit einer einzigen schärfenden Frage. Keine Würdigung, keine Zusammenfassung, kein "ich höre…". Direkt zur Frage.
 
-Wenn der User antwortet und du genug Substanz hast (nach 2-4 Turns), schlage eine knappe, prägnante Formulierung für das Feld vor. Format: zuerst max. 1 Satz Kommentar, dann auf neuer Zeile "💡 Vorschlag:" gefolgt vom konkreten Text (max 3-4 Sätze oder Stichpunkte).`;
+Wenn der User antwortet und du genug Substanz hast (nach 2-4 Turns), schlage eine knappe, prägnante Formulierung für das Feld vor. Format: zuerst max. 1 Satz Kommentar, dann auf neuer Zeile "💡 Vorschlag:" gefolgt vom konkreten Text (max 3-4 Sätze oder Stichpunkte).
+
+Wenn der User signalisiert, dass das Feld fertig ist ("passt", "okay", "fertig", "weiter", übernimmt den Vorschlag) oder zwei Mal in Folge zustimmt, dränge NICHT weiter. Antworte einmal kurz bestätigend (max 1 Satz, ohne neue Frage) und überlasse dem User die Initiative. Keine zusätzlichen Schärfungsfragen, keine "noch ein Punkt…".`;
 
 // ── Inline markdown helper (handles **bold**) ─────────────────────────────────
 function renderInlineMarkdown(text) {
@@ -72,11 +78,17 @@ const stripMarkdown = (text) => (text || "").replace(/\*\*([^*\n]+)\*\*/g, "$1")
 // ── API helper ────────────────────────────────────────────────────────────────
 async function callClaude(messages, system) {
   if (USE_PROXY) {
+    const password = localStorage.getItem("lean-canvas-password") || "";
     const res = await fetch("/api/chat", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "x-cohort-password": password },
       body: JSON.stringify({ messages, system }),
     });
+    if (res.status === 401) {
+      localStorage.removeItem("lean-canvas-password");
+      window.dispatchEvent(new CustomEvent("lean-canvas-auth-required"));
+      return { error: "auth" };
+    }
     return res.json();
   }
   const res = await fetch("https://api.anthropic.com/v1/messages", {
@@ -130,8 +142,10 @@ function GuidedPanel({
           background: "#FFF8E5", border: "1px solid #F2E8C5", color: "#7A6420",
           padding: "8px 12px", fontSize: 12, lineHeight: 1.45,
           margin: "10px 12px 0", borderRadius: 6, flexShrink: 0,
+          display: "flex", alignItems: "flex-start", gap: 7,
         }}>
-          💡 {importHint}
+          <Lightbulb size={14} style={{ flexShrink: 0, marginTop: 1 }} />
+          <span>{importHint}</span>
         </div>
       )}
 
@@ -169,8 +183,9 @@ function GuidedPanel({
             style={{
               background: colors.header, color: "#fff", border: "none", borderRadius: 10,
               padding: "8px 14px", fontSize: 13, cursor: "pointer", fontWeight: 600, width: "100%",
+              display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 7,
             }}
-          >✅ Vorschlag ins Feld übernehmen</button>
+          ><Check size={14} /> Vorschlag ins Feld übernehmen</button>
         </div>
       )}
 
@@ -203,10 +218,12 @@ function GuidedPanel({
           disabled={loading || !chatInput.trim()}
           style={{
             background: colors.header, color: "#fff", border: "none", borderRadius: 8,
-            padding: "8px 13px", fontSize: 14, cursor: loading ? "not-allowed" : "pointer",
+            padding: "8px 13px", cursor: loading ? "not-allowed" : "pointer",
             opacity: loading || !chatInput.trim() ? 0.5 : 1, fontWeight: 600, alignSelf: "flex-end", height: 38,
+            display: "inline-flex", alignItems: "center", justifyContent: "center",
           }}
-        >→</button>
+          title="Senden"
+        ><ArrowRight size={16} /></button>
       </div>
 
       {/* Empty-fields indicator */}
@@ -246,8 +263,9 @@ function GuidedPanel({
             borderRadius: 8, padding: "7px 14px", fontSize: 13,
             cursor: currentStep === 0 ? "not-allowed" : "pointer",
             fontFamily: "Plus Jakarta Sans, sans-serif", fontWeight: 500,
+            display: "inline-flex", alignItems: "center", gap: 6,
           }}
-        >← Zurück</button>
+        ><ArrowLeft size={13} /> Zurück</button>
         {isLast && !allFilled ? (
           <button
             onClick={onJumpToFirstEmpty}
@@ -255,9 +273,10 @@ function GuidedPanel({
               background: colors.header, color: "#fff",
               border: "none", borderRadius: 8, padding: "7px 16px", fontSize: 13,
               cursor: "pointer", fontFamily: "Plus Jakarta Sans, sans-serif", fontWeight: 600,
+              display: "inline-flex", alignItems: "center", gap: 6,
             }}
             title={`Springt zum ersten leeren Feld: ${firstEmptyLabel}`}
-          >→ Zu {firstEmptyLabel}</button>
+          >Zu {firstEmptyLabel} <ArrowRight size={13} /></button>
         ) : (
           <button
             onClick={onNext}
@@ -266,8 +285,9 @@ function GuidedPanel({
               color: isLast ? "#fff" : "#555",
               border: "none", borderRadius: 8, padding: "7px 16px", fontSize: 13,
               cursor: "pointer", fontFamily: "Plus Jakarta Sans, sans-serif", fontWeight: 600,
+              display: "inline-flex", alignItems: "center", gap: 6,
             }}
-          >{isLast ? "✓ Fertig" : "Nächster Bereich →"}</button>
+          >{isLast ? <><Check size={13} /> Fertig</> : <>Nächster Bereich <ArrowRight size={13} /></>}</button>
         )}
       </div>
     </div>
@@ -316,7 +336,9 @@ function FieldCard({
         </div>
         <div style={{ display: "flex", gap: 6, alignItems: "center", flexShrink: 0 }}>
           {isFilled && (
-            <span title="Gespeichert" style={{ color: "#5A8A6B", fontSize: 14, fontWeight: 700, lineHeight: 1 }}>✓</span>
+            <span title="Gespeichert" style={{ color: "#5A8A6B", display: "inline-flex", alignItems: "center" }}>
+              <Check size={14} strokeWidth={2.5} />
+            </span>
           )}
           {isActive && (
             <span style={{ fontSize: 10, background: colors.header, color: "#fff", borderRadius: 4, padding: "1px 6px", fontWeight: 600, letterSpacing: 0.4 }}>
@@ -329,9 +351,10 @@ function FieldCard({
             style={{
               background: isHelpOpen ? "#F2F2F2" : "transparent",
               border: "1px solid #E5E3DF", borderRadius: 4, color: "#7a7069",
-              fontSize: 11, cursor: "pointer", padding: "1px 6px", fontWeight: 700,
+              cursor: "pointer", padding: "2px 4px",
+              display: "inline-flex", alignItems: "center", justifyContent: "center",
             }}
-          >?</button>
+          ><Info size={13} /></button>
         </div>
       </div>
 
@@ -340,17 +363,37 @@ function FieldCard({
         {help.question}
       </div>
 
-      {/* Help panel (explanation + context-specific example) */}
+      {/* Help overlay (positioned absolutely — doesn't push textarea) */}
       {isHelpOpen && (
-        <div style={{
-          background: "#FAFAF8", padding: "8px 12px", fontSize: 12,
-          color: "#4a4a4a", borderTop: "1px solid #ECEAE6", borderBottom: "1px solid #ECEAE6", flexShrink: 0,
-        }}>
-          <p style={{ margin: "0 0 4px", color: "#3a3a3a" }}>{help.explanation}</p>
-          <p style={{ margin: 0, color: "#7a7069" }}>
-            <strong style={{ color: colors.header }}>Beispiel ({contextShort}):</strong> {help.examples[contextKey]}
-          </p>
-        </div>
+        <>
+          <div
+            onClick={(e) => { e.stopPropagation(); onToggleHelp(null); }}
+            style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.08)", zIndex: 50 }}
+          />
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              position: "absolute", top: 36, right: 8, zIndex: 51,
+              background: "#fff", border: "1px solid #ECEAE6",
+              boxShadow: "0 8px 28px rgba(0,0,0,0.12)",
+              borderRadius: 10, padding: "12px 14px", width: 280,
+              fontSize: 12, color: "#3a3a3a", lineHeight: 1.5,
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8, marginBottom: 6 }}>
+              <strong style={{ color: colors.header, fontSize: 12 }}>{label}</strong>
+              <button
+                onClick={(e) => { e.stopPropagation(); onToggleHelp(null); }}
+                title="Schließen"
+                style={{ background: "transparent", border: "none", cursor: "pointer", color: "#7a7069", padding: 2, display: "inline-flex" }}
+              ><X size={14} /></button>
+            </div>
+            <p style={{ margin: "0 0 8px" }}>{help.explanation}</p>
+            <p style={{ margin: 0, color: "#7a7069", fontSize: 11.5 }}>
+              <strong style={{ color: colors.header }}>Beispiel ({contextShort}):</strong> {help.examples[contextKey]}
+            </p>
+          </div>
+        </>
       )}
 
       {/* Textarea */}
@@ -382,6 +425,10 @@ export default function LeanCanvas() {
   const [suggestion, setSuggestion] = useState({});
   const [showClearDialog, setShowClearDialog] = useState(false);
   const [copySuccess, setCopySuccess] = useState(false);
+  const [showCanvasInfo, setShowCanvasInfo] = useState(false);
+  const [showAuthDialog, setShowAuthDialog] = useState(false);
+  const [authInput, setAuthInput] = useState("");
+  const [authError, setAuthError] = useState("");
   const chatEndRef = useRef(null);
 
   // Persist to localStorage
@@ -394,6 +441,12 @@ export default function LeanCanvas() {
         if (parsed.context) setContext(parsed.context);
       }
     } catch (e) {}
+    if (USE_PROXY && !localStorage.getItem("lean-canvas-password")) {
+      setShowAuthDialog(true);
+    }
+    const onAuthRequired = () => { setAuthError("Falsches oder fehlendes Passwort."); setShowAuthDialog(true); };
+    window.addEventListener("lean-canvas-auth-required", onAuthRequired);
+    return () => window.removeEventListener("lean-canvas-auth-required", onAuthRequired);
   }, []);
 
   useEffect(() => {
@@ -567,7 +620,7 @@ export default function LeanCanvas() {
       <div style={{ textAlign: "center", marginBottom: 14 }}>
         <h1 style={{ fontSize: 24, fontWeight: 700, color: "#1A1A1A", margin: "0 0 3px", letterSpacing: -0.4 }}>Lean Canvas</h1>
         <p style={{ color: "#7a7069", fontSize: 12, margin: 0 }}>
-          Interaktives Business-Modell-Tool · <span style={{ color: "#5A8A6B", fontWeight: 500 }}>✓ Eingaben lokal gespeichert</span>
+          Interaktives Business-Modell-Tool · <span style={{ color: "#5A8A6B", fontWeight: 500, display: "inline-flex", alignItems: "center", gap: 4 }}><Check size={12} strokeWidth={2.5} /> Eingaben lokal gespeichert</span>
         </p>
       </div>
 
@@ -578,12 +631,64 @@ export default function LeanCanvas() {
         display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 12,
         fontSize: 12, color: "#3a3a3a", lineHeight: 1.5,
       }}>
-        <span>
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
           <strong style={{ color: "#1A1A1A", fontWeight: 600 }}>So gehst du vor:</strong>{" "}
-          1. Kontext · 2. Modus · 3. Felder 1–9 (Problem zuerst).{" "}
-          <span title="Ash Maurya empfiehlt diese Reihenfolge: erst Probleme & Kunden klären, dann Wertversprechen, Lösung & Wirtschaftlichkeit. Die räumliche Anordnung folgt der klassischen Canvas-Optik — die Nummern führen dich durch die methodisch sinnvolle Bearbeitungsreihenfolge." style={{ color: "#5A8A6B", cursor: "help", fontWeight: 600 }}>ⓘ Wieso 1–9?</span>
+          1. Kontext · 2. Modus · 3. Felder 1–9 (Problem zuerst).
+          <button
+            onClick={() => setShowCanvasInfo(true)}
+            style={{
+              background: "transparent", border: "none", color: "#5A8A6B",
+              cursor: "pointer", fontWeight: 600, fontSize: 12,
+              fontFamily: "Plus Jakarta Sans, sans-serif",
+              display: "inline-flex", alignItems: "center", gap: 4, padding: 0,
+            }}
+          ><Info size={13} /> Mehr zum Canvas</button>
         </span>
       </div>
+
+      {/* Canvas info modal */}
+      {showCanvasInfo && (
+        <div
+          onClick={() => setShowCanvasInfo(false)}
+          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: 20 }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{ background: "#fff", border: "1px solid #ECEAE6", borderRadius: 14, padding: "24px 28px", maxWidth: 560, width: "100%", maxHeight: "85vh", overflowY: "auto", boxShadow: "0 20px 60px rgba(0,0,0,0.18)" }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14 }}>
+              <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "#1A1A1A" }}>Über das Lean Canvas</h3>
+              <button
+                onClick={() => setShowCanvasInfo(false)}
+                style={{ background: "transparent", border: "none", cursor: "pointer", color: "#7a7069", padding: 4, display: "inline-flex" }}
+              ><X size={18} /></button>
+            </div>
+            <div style={{ fontSize: 13, color: "#3a3a3a", lineHeight: 1.6 }}>
+              <p style={{ margin: "0 0 10px" }}>
+                Das Lean Canvas wurde 2010 von <strong>Ash Maurya</strong> entwickelt — als problemfokussierte Variante des Business Model Canvas, speziell für frühe Geschäftsideen und Startups.
+              </p>
+              <h4 style={{ margin: "16px 0 6px", fontSize: 13, color: "#1A1A1A", fontWeight: 600 }}>Warum Reihenfolge 1–9?</h4>
+              <p style={{ margin: "0 0 8px" }}>
+                Die räumliche Anordnung folgt der klassischen Canvas-Optik (Problem links, Wertversprechen Mitte, Kunde rechts). Die Bearbeitungsreihenfolge ist aber eine andere — sie folgt der Logik:
+              </p>
+              <ol style={{ margin: "0 0 10px", paddingLeft: 20 }}>
+                <li><strong>Problem & Kundensegment</strong> zuerst — ohne klares Problem keine Lösung.</li>
+                <li><strong>UVP</strong> als Brücke zwischen Problem und Lösung.</li>
+                <li><strong>Lösung & Kanäle</strong> — wie und worüber.</li>
+                <li><strong>Einnahmen & Kosten</strong> — Wirtschaftlichkeit prüfen.</li>
+                <li><strong>Kennzahlen & Unfairer Vorteil</strong> zum Schluss — Messung und Differenzierung.</li>
+              </ol>
+              <h4 style={{ margin: "16px 0 6px", fontSize: 13, color: "#1A1A1A", fontWeight: 600 }}>Wie der Coach arbeitet</h4>
+              <p style={{ margin: "0 0 8px" }}>
+                Im Geführten Modus stellt der KI-Coach <strong>eine Frage pro Schritt</strong>. Er gibt keine fertigen Antworten — du formulierst selbst. Erst wenn du genug Substanz geliefert hast, schlägt er eine Formulierung vor, die du übernehmen oder anpassen kannst.
+              </p>
+              <p style={{ margin: 0, color: "#7a7069", fontSize: 12, fontStyle: "italic" }}>
+                Lerne durch Tun. Die KI ist Sparring-Partnerin, nicht Generator.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Context selector + Mode toggle in one row */}
       <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center", justifyContent: "center", marginBottom: 16 }}>
@@ -601,21 +706,24 @@ export default function LeanCanvas() {
         </div>
         <div style={{ width: 1, height: 24, background: "#E5E3DF", margin: "0 4px" }} />
         <div style={{ background: "#F2F2F0", border: "1px solid #ECEAE6", borderRadius: 8, padding: 3, display: "flex", gap: 3 }}>
-          {[["self", "✏️ Selbst ausfüllen"], ["guided", "✨ Geführter Modus"]].map(([val, lbl]) => (
+          {[["self", "Selbst ausfüllen", Pencil], ["guided", "Geführter Modus", Sparkles]].map(([val, lbl, Icon]) => (
             <button key={val} onClick={() => { setMode(val); if (val === "guided") { setGuidedStep(0); setChatInput(""); } }} style={{
               background: mode === val ? "#1A1A1A" : "transparent",
               color: mode === val ? "#fff" : "#5a5a5a",
               border: "none", borderRadius: 6, padding: "6px 14px", fontSize: 12, cursor: "pointer",
               fontFamily: "Plus Jakarta Sans, sans-serif",
               fontWeight: mode === val ? 600 : 500, transition: "all 0.15s",
-            }}>{lbl}</button>
+              display: "inline-flex", alignItems: "center", gap: 6,
+            }}><Icon size={13} />{lbl}</button>
           ))}
         </div>
       </div>
 
       {mode === "guided" && (
-        <div style={{ textAlign: "center", marginBottom: 18, fontSize: 13, color: "#3a3a3a", background: "#fff", border: "1px solid #ECEAE6", padding: "10px 20px", borderRadius: 10, maxWidth: 560, margin: "0 auto 18px" }}>
-          ✨ Der Coach führt dich Schritt für Schritt durch den Canvas. Klicke auf ein Feld, um dorthin zu springen.
+        <div style={{ textAlign: "center", fontSize: 13, color: "#3a3a3a", background: "#fff", border: "1px solid #ECEAE6", padding: "10px 20px", borderRadius: 10, maxWidth: 560, margin: "0 auto 18px" }}>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+            <Sparkles size={14} color="#5A8A6B" /> Der Coach führt dich Schritt für Schritt durch den Canvas. Klicke auf ein Feld, um dorthin zu springen.
+          </span>
         </div>
       )}
 
@@ -676,18 +784,73 @@ export default function LeanCanvas() {
           background: copySuccess ? "#5A8A6B" : "#fff", color: copySuccess ? "#fff" : "#1A1A1A",
           border: `1px solid ${copySuccess ? "#5A8A6B" : "#E5E3DF"}`, borderRadius: 8, padding: "9px 18px", fontSize: 13,
           cursor: "pointer", fontFamily: "Plus Jakarta Sans, sans-serif", fontWeight: 500, transition: "all 0.2s",
-        }}>{copySuccess ? "✅ Kopiert!" : "📋 Als Text kopieren"}</button>
+          display: "inline-flex", alignItems: "center", gap: 7,
+        }}>{copySuccess ? <><Check size={14} /> Kopiert!</> : <><Copy size={14} /> Als Text kopieren</>}</button>
         <button onClick={downloadAsMarkdown} style={{
           background: "#fff", color: "#1A1A1A", border: "1px solid #E5E3DF",
           borderRadius: 8, padding: "9px 18px", fontSize: 13, cursor: "pointer",
           fontFamily: "Plus Jakarta Sans, sans-serif", fontWeight: 500,
-        }}>📥 Als Markdown herunterladen</button>
+          display: "inline-flex", alignItems: "center", gap: 7,
+        }}><Download size={14} /> Als Markdown herunterladen</button>
         <button onClick={() => setShowClearDialog(true)} style={{
           background: "#fff", color: "#B05A3F", border: "1px solid #ECD8CB",
           borderRadius: 8, padding: "9px 18px", fontSize: 13, cursor: "pointer",
           fontFamily: "Plus Jakarta Sans, sans-serif", fontWeight: 500,
-        }}>🔄 Canvas leeren</button>
+          display: "inline-flex", alignItems: "center", gap: 7,
+        }}><RotateCcw size={14} /> Canvas leeren</button>
       </div>
+
+      {/* Auth dialog */}
+      {showAuthDialog && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1100, padding: 20 }}>
+          <div style={{ background: "#fff", border: "1px solid #ECEAE6", borderRadius: 14, padding: 28, maxWidth: 380, width: "100%", boxShadow: "0 20px 60px rgba(0,0,0,0.18)" }}>
+            <h3 style={{ margin: "0 0 6px", color: "#1A1A1A", fontSize: 17, fontWeight: 700 }}>Zugang zum Lean Canvas</h3>
+            <p style={{ color: "#7a7069", fontSize: 13, margin: "0 0 16px", lineHeight: 1.5 }}>
+              Dieses Tool ist für die Kohorte freigeschaltet. Bitte gib das Kurs-Passwort ein.
+            </p>
+            <input
+              type="password"
+              autoFocus
+              value={authInput}
+              onChange={(e) => { setAuthInput(e.target.value); setAuthError(""); }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && authInput.trim()) {
+                  localStorage.setItem("lean-canvas-password", authInput.trim());
+                  setShowAuthDialog(false);
+                  setAuthInput("");
+                  setAuthError("");
+                }
+              }}
+              placeholder="Passwort"
+              style={{
+                width: "100%", padding: "10px 12px", fontSize: 14,
+                border: `1.5px solid ${authError ? "#B05A3F" : "#E5E3DF"}`, borderRadius: 8,
+                fontFamily: "Plus Jakarta Sans, sans-serif", outline: "none", color: "#1A1A1A",
+                boxSizing: "border-box",
+              }}
+            />
+            {authError && <p style={{ color: "#B05A3F", fontSize: 12, margin: "6px 0 0" }}>{authError}</p>}
+            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 16 }}>
+              <button
+                onClick={() => {
+                  if (!authInput.trim()) return;
+                  localStorage.setItem("lean-canvas-password", authInput.trim());
+                  setShowAuthDialog(false);
+                  setAuthInput("");
+                  setAuthError("");
+                }}
+                disabled={!authInput.trim()}
+                style={{
+                  background: "#1A1A1A", color: "#fff", border: "none", borderRadius: 8,
+                  padding: "9px 22px", fontSize: 13, cursor: authInput.trim() ? "pointer" : "not-allowed",
+                  opacity: authInput.trim() ? 1 : 0.4,
+                  fontFamily: "Plus Jakarta Sans, sans-serif", fontWeight: 600,
+                }}
+              >Freischalten</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Clear dialog */}
       {showClearDialog && (
