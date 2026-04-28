@@ -414,6 +414,24 @@ export default function LeanCanvas() {
     setTimeout(() => setCopySuccess(false), 2000);
   };
 
+  const downloadAsMarkdown = () => {
+    const ctx = CONTEXTS[context];
+    const today = new Date().toISOString().slice(0, 10);
+    const lines = [`# Lean Canvas — ${ctx.example}`, "", `*${today}*`, ""];
+    GUIDED_SEQUENCE.forEach(k => {
+      lines.push(`## ${getFieldLabel(k)}`, "", fields[k]?.trim() || "_(leer)_", "");
+    });
+    const blob = new Blob([lines.join("\n")], { type: "text/markdown;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `lean-canvas-${ctx.short.toLowerCase().replace(/\s+/g, "-")}-${today}.md`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   const clearCanvas = () => {
     setFields({}); setChatMessages({}); setSuggestion({}); setGuidedStep(0);
     setChatInput(""); setShowClearDialog(false);
@@ -546,6 +564,11 @@ export default function LeanCanvas() {
           border: "2px solid #ddd5cc", borderRadius: 10, padding: "10px 20px", fontSize: 14,
           cursor: "pointer", fontFamily: "Plus Jakarta Sans, sans-serif", fontWeight: 500, transition: "all 0.2s",
         }}>{copySuccess ? "✅ Kopiert!" : "📋 Als Text kopieren"}</button>
+        <button onClick={downloadAsMarkdown} style={{
+          background: "#fff", color: "#2C2420", border: "2px solid #ddd5cc",
+          borderRadius: 10, padding: "10px 20px", fontSize: 14, cursor: "pointer",
+          fontFamily: "Plus Jakarta Sans, sans-serif", fontWeight: 500,
+        }}>📥 Als Markdown herunterladen</button>
         <button onClick={() => setShowClearDialog(true)} style={{
           background: "#fff", color: "#C17B5A", border: "2px solid #f0c8b4",
           borderRadius: 10, padding: "10px 20px", fontSize: 14, cursor: "pointer",
