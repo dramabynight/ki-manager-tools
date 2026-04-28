@@ -17,8 +17,8 @@ const CONTEXTS = {
 };
 
 const FIELD_HELP = {
-  problem:   { label: "Problem",                       explanation: "Beschreibe die 3 wichtigsten Probleme deiner Kunden. Fokussiere dich auf reale Schmerzen, nicht auf hypothetische.", question: "Was ist der größte Frust deiner Zielgruppe heute?",                                       examples: { digital: "Online-Käufer wissen nicht, welches E-Bike zu ihrem Alltag passt – zu viele Optionen, zu wenig persönliche Beratung.", service: "PM-Teams stehen vor KI-Tools, wissen aber nicht, wo sie sinnvoll anfangen sollen.", nonprofit: "Eltern mit mobilitätseingeschränkten Kindern finden keine barrierefreien Spielplätze.", physical: "Balkon-Gärtner haben wenig Platz und wissen nicht, wie sie platzsparend anbauen können." } },
-  customers: { label: "Kundensegmente",                explanation: "Wen willst du als erstes erreichen? Beschreibe eine konkrete Persona, nicht eine vage Gruppe.",                      question: "Wer hat das Problem am stärksten und ist bereit, dafür zu zahlen?",                          examples: { digital: "Urban Commuter, 28–45 J., Großstadt, pendelt täglich, Budget 2.500–4.000 €.", service: "Projektmanager in Konzernen, 30–50 J., verantwortlich für Teams von 5–20 Personen.", nonprofit: "Eltern von Kindern mit körperlicher Einschränkung, 25–45 J., urban, aktiv in Eltern-Communitys.", physical: "Urban Gardener, Mieter mit Balkon, 25–40 J., nachhaltigkeitsbewusst, keine Gartenerfahrung." } },
+  problem:   { label: "Problem",                       importHint: "Hast du schon Pain-Points aus Empathy Map oder Journey? Paste sie unten in den Chat — der Coach baut darauf auf.",                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            explanation: "Beschreibe die 3 wichtigsten Probleme deiner Kunden. Fokussiere dich auf reale Schmerzen, nicht auf hypothetische.", question: "Was ist der größte Frust deiner Zielgruppe heute?",                                       examples: { digital: "Online-Käufer wissen nicht, welches E-Bike zu ihrem Alltag passt – zu viele Optionen, zu wenig persönliche Beratung.", service: "PM-Teams stehen vor KI-Tools, wissen aber nicht, wo sie sinnvoll anfangen sollen.", nonprofit: "Eltern mit mobilitätseingeschränkten Kindern finden keine barrierefreien Spielplätze.", physical: "Balkon-Gärtner haben wenig Platz und wissen nicht, wie sie platzsparend anbauen können." } },
+  customers: { label: "Kundensegmente",                importHint: "Hast du schon eine Persona aus Empathy Map / Journey? Paste sie unten — der Coach übernimmt Name, Rolle und Kontext.",                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       explanation: "Wen willst du als erstes erreichen? Beschreibe eine konkrete Persona, nicht eine vage Gruppe.",                      question: "Wer hat das Problem am stärksten und ist bereit, dafür zu zahlen?",                          examples: { digital: "Urban Commuter, 28–45 J., Großstadt, pendelt täglich, Budget 2.500–4.000 €.", service: "Projektmanager in Konzernen, 30–50 J., verantwortlich für Teams von 5–20 Personen.", nonprofit: "Eltern von Kindern mit körperlicher Einschränkung, 25–45 J., urban, aktiv in Eltern-Communitys.", physical: "Urban Gardener, Mieter mit Balkon, 25–40 J., nachhaltigkeitsbewusst, keine Gartenerfahrung." } },
   uvp:       { label: "Einzigartiges Wertversprechen", explanation: "Ein klarer Satz, warum du anders und besser bist. Was macht dein Angebot unverwechselbar?",                        question: "Warum sollte jemand genau bei dir kaufen – und nicht woanders?",                              examples: { digital: "Das erste E-Bike-Tool, das dir in 3 Minuten das perfekte Modell für deinen Alltag empfiehlt.", service: "KI-Skills lernen anhand echter Projekte – kein Theorie-Overhead.", nonprofit: "Barrierefreie Spielplätze finden – so einfach wie Google Maps.", physical: "Balkongarten ohne Bohren, ohne Frust – in 20 Minuten aufgebaut." } },
   solution:  { label: "Lösung",                        explanation: "Die einfachste Lösung für jedes Problem. Noch keine Features – nur das Kernkonzept.",                              question: "Was ist der kleinste sinnvolle Schritt, der das Problem löst?",                               examples: { digital: "Interaktiver 3-Schritt-Konfigurator mit Lifestyle-Fragen und passenden Modell-Empfehlungen.", service: "1-Tages-Workshop mit konkreten Anwendungsfällen direkt aus dem PM-Alltag.", nonprofit: "Kartenbasierte App mit gefilterten Spielplätzen nach Barrierefreiheitskriterien.", physical: "Modulares Hochbeet-System aus 3 Grundmodulen, steckbar ohne Werkzeug." } },
   channels:  { label: "Kanäle",                        explanation: "Wie erreichst du deine Kunden? Von Awareness bis After-Sales.",                                                     question: "Wo ist deine Zielgruppe schon unterwegs – online und offline?",                               examples: { digital: "SEO auf E-Bike-Keywords, Instagram Ads, YouTube-Reviews, Partnerschaft mit Fahrradläden.", service: "LinkedIn, PM-Konferenzen, Unternehmens-Newsletter, Weiterempfehlung.", nonprofit: "Eltern-Facebook-Gruppen, Kita-Verteiler, lokale Presse, Kooperation mit Behindertenverbänden.", physical: "Instagram Gardening-Community, Pinterest, DM/OBI-Regalplatz, Craft-Messen." } },
@@ -89,7 +89,7 @@ async function callClaude(messages, system) {
 
 // ── GuidedPanel ───────────────────────────────────────────────────────────────
 function GuidedPanel({
-  currentFieldKey, currentStep, totalSteps, colors, label,
+  currentFieldKey, currentStep, totalSteps, colors, label, importHint,
   msgs, loading, chatInput, hasSuggestion, chatEndRef,
   onSendMessage, onChatInputChange, onAdoptSuggestion, onNext, onBack,
 }) {
@@ -121,6 +121,17 @@ function GuidedPanel({
           <div style={{ height: "100%", width: `${progress}%`, background: colors.header, borderRadius: 2, transition: "width 0.4s ease" }} />
         </div>
       </div>
+
+      {/* Import hint (only on fields that benefit from prior work) */}
+      {importHint && (
+        <div style={{
+          background: "#FFF8E5", border: "1px solid #F2E8C5", color: "#7A6420",
+          padding: "8px 12px", fontSize: 12, lineHeight: 1.45,
+          margin: "10px 12px 0", borderRadius: 6, flexShrink: 0,
+        }}>
+          💡 {importHint}
+        </div>
+      )}
 
       {/* Messages */}
       <div style={{
@@ -221,7 +232,7 @@ function GuidedPanel({
             border: "none", borderRadius: 8, padding: "7px 16px", fontSize: 13,
             cursor: "pointer", fontFamily: "Plus Jakarta Sans, sans-serif", fontWeight: 600,
           }}
-        >{isLast ? "✓ Fertig" : "Weiter →"}</button>
+        >{isLast ? "✓ Fertig" : "Nächster Bereich →"}</button>
       </div>
     </div>
   );
@@ -594,6 +605,7 @@ export default function LeanCanvas() {
             totalSteps={GUIDED_SEQUENCE.length}
             colors={FIELD_COLORS[currentGuidedKey]}
             label={getFieldLabel(currentGuidedKey)}
+            importHint={FIELD_HELP[currentGuidedKey]?.importHint}
             msgs={chatMessages[currentGuidedKey] || []}
             loading={loading}
             chatInput={chatInput}
