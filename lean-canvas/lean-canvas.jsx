@@ -332,7 +332,7 @@ function FieldCard({
             padding: "1px 6px", fontSize: 11, fontWeight: 700, letterSpacing: 0.3,
             flexShrink: 0,
           }}>{stepNumber}</span>
-          <span style={{ fontWeight: 600, fontSize: 13, color: "#1A1A1A", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{label}</span>
+          <span style={{ fontWeight: 600, fontSize: 13, color: "#1A1A1A", lineHeight: 1.25 }}>{label}</span>
         </div>
         <div style={{ display: "flex", gap: 6, alignItems: "center", flexShrink: 0 }}>
           {isFilled && (
@@ -363,37 +363,32 @@ function FieldCard({
         {help.question}
       </div>
 
-      {/* Help overlay (positioned absolutely — doesn't push textarea) */}
+      {/* Help overlay — fills the whole card so it never gets clipped */}
       {isHelpOpen && (
-        <>
-          <div
-            onClick={(e) => { e.stopPropagation(); onToggleHelp(null); }}
-            style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.08)", zIndex: 50 }}
-          />
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              position: "absolute", top: 36, right: 8, zIndex: 51,
-              background: "#fff", border: "1px solid #ECEAE6",
-              boxShadow: "0 8px 28px rgba(0,0,0,0.12)",
-              borderRadius: 10, padding: "12px 14px", width: 280,
-              fontSize: 12, color: "#3a3a3a", lineHeight: 1.5,
-            }}
-          >
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8, marginBottom: 6 }}>
-              <strong style={{ color: colors.header, fontSize: 12 }}>{label}</strong>
-              <button
-                onClick={(e) => { e.stopPropagation(); onToggleHelp(null); }}
-                title="Schließen"
-                style={{ background: "transparent", border: "none", cursor: "pointer", color: "#7a7069", padding: 2, display: "inline-flex" }}
-              ><X size={14} /></button>
-            </div>
-            <p style={{ margin: "0 0 8px" }}>{help.explanation}</p>
+        <div
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            position: "absolute", inset: 0, zIndex: 51,
+            background: "#fff",
+            display: "flex", flexDirection: "column",
+            fontSize: 12, color: "#3a3a3a", lineHeight: 1.55,
+          }}
+        >
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, padding: "10px 12px 6px", borderBottom: "1px solid #ECEAE6", flexShrink: 0 }}>
+            <strong style={{ color: colors.header, fontSize: 13 }}>{label}</strong>
+            <button
+              onClick={(e) => { e.stopPropagation(); onToggleHelp(null); }}
+              title="Schließen"
+              style={{ background: "transparent", border: "1px solid #E5E3DF", borderRadius: 4, cursor: "pointer", color: "#7a7069", padding: "2px 4px", display: "inline-flex" }}
+            ><X size={14} /></button>
+          </div>
+          <div style={{ flex: 1, overflowY: "auto", padding: "10px 12px" }}>
+            <p style={{ margin: "0 0 10px" }}>{help.explanation}</p>
             <p style={{ margin: 0, color: "#7a7069", fontSize: 11.5 }}>
               <strong style={{ color: colors.header }}>Beispiel ({contextShort}):</strong> {help.examples[contextKey]}
             </p>
           </div>
-        </>
+        </div>
       )}
 
       {/* Textarea */}
@@ -624,16 +619,20 @@ export default function LeanCanvas() {
         </p>
       </div>
 
-      {/* Intro + controls — single compact row */}
+      {/* Intro — centered */}
       <div style={{
         maxWidth: 1180, margin: "0 auto 14px", padding: "10px 16px",
         background: "#fff", border: "1px solid #ECEAE6", borderRadius: 10,
-        display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 12,
-        fontSize: 12, color: "#3a3a3a", lineHeight: 1.5,
+        textAlign: "center",
+        fontSize: 12, color: "#3a3a3a", lineHeight: 1.6,
       }}>
-        <span style={{ display: "inline-flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-          <strong style={{ color: "#1A1A1A", fontWeight: 600 }}>So gehst du vor:</strong>{" "}
-          1. Kontext · 2. Modus · 3. Felder 1–9 (Problem zuerst).
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 8, flexWrap: "wrap", justifyContent: "center" }}>
+          <strong style={{ color: "#1A1A1A", fontWeight: 600 }}>So gehst du vor:</strong>
+          <span><strong style={{ color: "#1A1A1A" }}>1.</strong> Kontext wählen</span>
+          <span style={{ color: "#c4c4c4" }}>·</span>
+          <span><strong style={{ color: "#1A1A1A" }}>2.</strong> Modus wählen</span>
+          <span style={{ color: "#c4c4c4" }}>·</span>
+          <span><strong style={{ color: "#1A1A1A" }}>3.</strong> Felder 1–9 ausfüllen <em style={{ color: "#7a7069" }}>(Problem zuerst)</em></span>
           <button
             onClick={() => setShowCanvasInfo(true)}
             style={{
@@ -667,6 +666,10 @@ export default function LeanCanvas() {
               <p style={{ margin: "0 0 10px" }}>
                 Das Lean Canvas wurde 2010 von <strong>Ash Maurya</strong> entwickelt — als problemfokussierte Variante des Business Model Canvas, speziell für frühe Geschäftsideen und Startups.
               </p>
+              <h4 style={{ margin: "16px 0 6px", fontSize: 13, color: "#1A1A1A", fontWeight: 600 }}>Verwandt: Business Model Canvas</h4>
+              <p style={{ margin: "0 0 8px" }}>
+                Das <strong>Business Model Canvas</strong> (Osterwalder, 2008) ist der Vorläufer — ein Strategie-Tool für etablierte Geschäftsmodelle mit Fokus auf Partnerschaften, Schlüsselaktivitäten und Kundenbeziehungen. Maurya tauschte vier Felder aus, um es für Startups passender zu machen: <strong>Problem</strong> statt Key Partners, <strong>Lösung</strong> statt Key Activities, <strong>Kennzahlen</strong> statt Key Resources, <strong>Unfairer Vorteil</strong> statt Customer Relationships.
+              </p>
               <h4 style={{ margin: "16px 0 6px", fontSize: 13, color: "#1A1A1A", fontWeight: 600 }}>Warum Reihenfolge 1–9?</h4>
               <p style={{ margin: "0 0 8px" }}>
                 Die räumliche Anordnung folgt der klassischen Canvas-Optik (Problem links, Wertversprechen Mitte, Kunde rechts). Die Bearbeitungsreihenfolge ist aber eine andere — sie folgt der Logik:
@@ -691,31 +694,37 @@ export default function LeanCanvas() {
       )}
 
       {/* Context selector + Mode toggle in one row */}
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center", justifyContent: "center", marginBottom: 16 }}>
-        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "center" }}>
-          {Object.entries(CONTEXTS).map(([key, ctx]) => (
-            <button key={key} onClick={() => setContext(key)} style={{
-              background: context === key ? "#1A1A1A" : "#fff",
-              color: context === key ? "#fff" : "#1A1A1A",
-              border: `1px solid ${context === key ? "#1A1A1A" : "#E5E3DF"}`,
-              borderRadius: 8, padding: "6px 12px", fontSize: 12, cursor: "pointer",
-              fontFamily: "Plus Jakarta Sans, sans-serif",
-              fontWeight: context === key ? 600 : 500, transition: "all 0.15s",
-            }}>{ctx.label}</button>
-          ))}
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 14, alignItems: "center", justifyContent: "center", marginBottom: 16 }}>
+        <div style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontSize: 11, color: "#7a7069", fontWeight: 600, letterSpacing: 0.6, textTransform: "uppercase" }}>Kontext</span>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "center" }}>
+            {Object.entries(CONTEXTS).map(([key, ctx]) => (
+              <button key={key} onClick={() => setContext(key)} style={{
+                background: context === key ? "#1A1A1A" : "#fff",
+                color: context === key ? "#fff" : "#1A1A1A",
+                border: `1px solid ${context === key ? "#1A1A1A" : "#E5E3DF"}`,
+                borderRadius: 8, padding: "6px 12px", fontSize: 12, cursor: "pointer",
+                fontFamily: "Plus Jakarta Sans, sans-serif",
+                fontWeight: context === key ? 600 : 500, transition: "all 0.15s",
+              }}>{ctx.label}</button>
+            ))}
+          </div>
         </div>
-        <div style={{ width: 1, height: 24, background: "#E5E3DF", margin: "0 4px" }} />
-        <div style={{ background: "#F2F2F0", border: "1px solid #ECEAE6", borderRadius: 8, padding: 3, display: "flex", gap: 3 }}>
-          {[["self", "Selbst ausfüllen", Pencil], ["guided", "Geführter Modus", Sparkles]].map(([val, lbl, Icon]) => (
-            <button key={val} onClick={() => { setMode(val); if (val === "guided") { setGuidedStep(0); setChatInput(""); } }} style={{
-              background: mode === val ? "#1A1A1A" : "transparent",
-              color: mode === val ? "#fff" : "#5a5a5a",
-              border: "none", borderRadius: 6, padding: "6px 14px", fontSize: 12, cursor: "pointer",
-              fontFamily: "Plus Jakarta Sans, sans-serif",
-              fontWeight: mode === val ? 600 : 500, transition: "all 0.15s",
-              display: "inline-flex", alignItems: "center", gap: 6,
-            }}><Icon size={13} />{lbl}</button>
-          ))}
+        <div style={{ width: 1, height: 28, background: "#E5E3DF" }} />
+        <div style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontSize: 11, color: "#7a7069", fontWeight: 600, letterSpacing: 0.6, textTransform: "uppercase" }}>Modus</span>
+          <div style={{ background: "#F2F2F0", border: "1px solid #DCDAD3", borderRadius: 8, padding: 3, display: "flex", gap: 3 }}>
+            {[["self", "Selbst ausfüllen", Pencil], ["guided", "Geführter Modus", Sparkles]].map(([val, lbl, Icon]) => (
+              <button key={val} onClick={() => { setMode(val); if (val === "guided") { setGuidedStep(0); setChatInput(""); } }} style={{
+                background: mode === val ? "#1A1A1A" : "transparent",
+                color: mode === val ? "#fff" : "#3a3a3a",
+                border: "none", borderRadius: 6, padding: "6px 14px", fontSize: 12, cursor: "pointer",
+                fontFamily: "Plus Jakarta Sans, sans-serif",
+                fontWeight: mode === val ? 600 : 500, transition: "all 0.15s",
+                display: "inline-flex", alignItems: "center", gap: 6,
+              }}><Icon size={13} />{lbl}</button>
+            ))}
+          </div>
         </div>
       </div>
 
