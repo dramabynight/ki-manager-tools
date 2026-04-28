@@ -77,25 +77,26 @@ function GuidedPanel({
   return (
     <div style={{
       width: 340, flexShrink: 0,
-      background: colors.light,
-      border: `1.5px solid ${colors.bg}`,
-      borderRadius: 16,
+      background: "#fff",
+      border: "1px solid #ECEAE6",
+      borderTop: `3px solid ${colors.header}`,
+      borderRadius: 10,
       display: "flex",
       flexDirection: "column",
       position: "sticky",
       top: 24,
       maxHeight: "calc(100vh - 48px)",
       overflow: "hidden",
-      boxShadow: "0 4px 24px rgba(0,0,0,0.09)",
+      boxShadow: "0 2px 10px rgba(0,0,0,0.04)",
     }}>
       {/* Header */}
-      <div style={{ background: colors.header, color: "#fff", padding: "14px 16px", flexShrink: 0 }}>
-        <div style={{ fontSize: 11, opacity: 0.75, letterSpacing: 0.8, textTransform: "uppercase", marginBottom: 3 }}>
+      <div style={{ background: "#fff", color: "#1A1A1A", padding: "12px 16px 10px", flexShrink: 0, borderBottom: "1px solid #ECEAE6" }}>
+        <div style={{ fontSize: 11, color: "#7a7069", letterSpacing: 0.8, textTransform: "uppercase", marginBottom: 3, fontWeight: 600 }}>
           Schritt {currentStep + 1} von {totalSteps}
         </div>
-        <div style={{ fontWeight: 700, fontSize: 15 }}>{label}</div>
-        <div style={{ height: 3, background: "rgba(255,255,255,0.25)", borderRadius: 2, marginTop: 10 }}>
-          <div style={{ height: "100%", width: `${progress}%`, background: "#fff", borderRadius: 2, transition: "width 0.4s ease" }} />
+        <div style={{ fontWeight: 700, fontSize: 15, color: "#1A1A1A" }}>{label}</div>
+        <div style={{ height: 3, background: "#F2F2F0", borderRadius: 2, marginTop: 10 }}>
+          <div style={{ height: "100%", width: `${progress}%`, background: colors.header, borderRadius: 2, transition: "width 0.4s ease" }} />
         </div>
       </div>
 
@@ -197,62 +198,77 @@ function GuidedPanel({
 // Defined at module level to prevent re-mounting on every parent render.
 function FieldCard({
   fieldKey, gridStyle, colors, label, help, contextKey, contextShort,
-  mode, fieldValue, isHelpOpen, isActive,
+  mode, fieldValue, isHelpOpen, isActive, stepNumber,
   onFieldChange, onToggleHelp, onActivate,
 }) {
+  const isFilled = !!fieldValue?.trim();
   return (
     <div
       onClick={mode === "guided" ? () => onActivate(fieldKey) : undefined}
       style={{
         ...gridStyle,
         position: "relative",
-        background: colors.light,
-        borderRadius: 14,
-        boxShadow: isActive
-          ? `0 0 0 3px ${colors.header}50, 0 4px 20px rgba(0,0,0,0.1)`
-          : "0 2px 12px rgba(0,0,0,0.07)",
+        background: "#fff",
+        borderRadius: 10,
+        boxShadow: isActive ? `0 0 0 2px ${colors.header}` : "none",
         display: "flex",
         flexDirection: "column",
         overflow: "hidden",
-        border: isActive ? `2px solid ${colors.header}` : `1.5px solid ${colors.bg}`,
-        transition: "box-shadow 0.2s, border 0.2s",
+        border: "1px solid #ECEAE6",
+        borderTop: `3px solid ${colors.header}`,
+        transition: "box-shadow 0.15s, border 0.15s",
         cursor: mode === "guided" ? "pointer" : "default",
       }}
     >
       {/* Header */}
       <div style={{
-        background: colors.header, color: "#fff", padding: "8px 12px",
+        padding: "10px 12px 4px",
         display: "flex", justifyContent: "space-between", alignItems: "center", flexShrink: 0,
       }}>
-        <span style={{ fontWeight: 600, fontSize: 13, letterSpacing: 0.3 }}>{label}</span>
-        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+          <span style={{
+            background: colors.light, color: colors.header,
+            border: `1px solid ${colors.bg}`, borderRadius: 5,
+            padding: "1px 6px", fontSize: 11, fontWeight: 700, letterSpacing: 0.3,
+            flexShrink: 0,
+          }}>{stepNumber}</span>
+          <span style={{ fontWeight: 600, fontSize: 13, color: "#1A1A1A", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{label}</span>
+        </div>
+        <div style={{ display: "flex", gap: 6, alignItems: "center", flexShrink: 0 }}>
+          {isFilled && (
+            <span title="Gespeichert" style={{ color: "#5A8A6B", fontSize: 14, fontWeight: 700, lineHeight: 1 }}>✓</span>
+          )}
           {isActive && (
-            <span style={{ fontSize: 11, background: "rgba(255,255,255,0.25)", borderRadius: 10, padding: "1px 7px", fontWeight: 600 }}>
-              aktiv
+            <span style={{ fontSize: 10, background: colors.header, color: "#fff", borderRadius: 4, padding: "1px 6px", fontWeight: 600, letterSpacing: 0.4 }}>
+              AKTIV
             </span>
           )}
           <button
             onClick={(e) => { e.stopPropagation(); onToggleHelp(isHelpOpen ? null : fieldKey); }}
-            title="Hilfe anzeigen"
+            title="Mehr Infos & Beispiel"
             style={{
-              background: isHelpOpen ? "rgba(255,255,255,0.35)" : "rgba(255,255,255,0.18)",
-              border: "none", borderRadius: 6, color: "#fff", fontSize: 12,
-              cursor: "pointer", padding: "2px 7px", fontWeight: 700, transition: "background 0.15s",
+              background: isHelpOpen ? "#F2F2F2" : "transparent",
+              border: "1px solid #E5E3DF", borderRadius: 4, color: "#7a7069",
+              fontSize: 11, cursor: "pointer", padding: "1px 6px", fontWeight: 700,
             }}
           >?</button>
         </div>
       </div>
 
-      {/* Help panel */}
+      {/* Always-visible leitfrage */}
+      <div style={{ padding: "0 12px 6px", color: "#7a7069", fontSize: 12, fontStyle: "italic", lineHeight: 1.4, flexShrink: 0 }}>
+        {help.question}
+      </div>
+
+      {/* Help panel (explanation + context-specific example) */}
       {isHelpOpen && (
         <div style={{
-          background: colors.bg, padding: "10px 12px", fontSize: 12,
-          color: "#4a4a4a", borderBottom: `1px solid ${colors.header}30`, flexShrink: 0,
+          background: "#FAFAF8", padding: "8px 12px", fontSize: 12,
+          color: "#4a4a4a", borderTop: "1px solid #ECEAE6", borderBottom: "1px solid #ECEAE6", flexShrink: 0,
         }}>
-          <p style={{ margin: "0 0 4px", fontWeight: 500 }}>{help.explanation}</p>
-          <p style={{ margin: "0 0 4px", color: colors.header, fontStyle: "italic" }}>❓ {help.question}</p>
-          <p style={{ margin: 0, color: "#666" }}>
-            <strong>Beispiel ({contextShort}):</strong> {help.examples[contextKey]}
+          <p style={{ margin: "0 0 4px", color: "#3a3a3a" }}>{help.explanation}</p>
+          <p style={{ margin: 0, color: "#7a7069" }}>
+            <strong style={{ color: colors.header }}>Beispiel ({contextShort}):</strong> {help.examples[contextKey]}
           </p>
         </div>
       )}
@@ -262,21 +278,13 @@ function FieldCard({
         value={fieldValue}
         onChange={(e) => { e.stopPropagation(); onFieldChange(fieldKey, e.target.value); }}
         onClick={(e) => e.stopPropagation()}
-        placeholder={`${label} beschreiben…`}
+        placeholder={`z.B.: ${help.examples[contextKey]}`}
         style={{
           flex: 1, border: "none", background: "transparent", resize: "none",
-          padding: "10px 12px", fontFamily: "Plus Jakarta Sans, sans-serif",
-          fontSize: 13, color: "#3a3a3a", outline: "none", minHeight: 70, lineHeight: 1.5,
+          padding: "4px 12px 12px", fontFamily: "Plus Jakarta Sans, sans-serif",
+          fontSize: 13, color: "#1A1A1A", outline: "none", minHeight: 50, lineHeight: 1.5,
         }}
       />
-
-      {/* Saved indicator */}
-      {fieldValue && (
-        <div style={{
-          position: "absolute", bottom: 5, right: 8, fontSize: 11,
-          color: colors.header, opacity: 0.45, pointerEvents: "none", fontWeight: 600,
-        }}>✓</div>
-      )}
     </div>
   );
 }
@@ -453,6 +461,7 @@ export default function LeanCanvas() {
       fieldValue={fields[fieldKey] || ""}
       isHelpOpen={helpOpen === fieldKey}
       isActive={mode === "guided" && currentGuidedKey === fieldKey}
+      stepNumber={GUIDED_SEQUENCE.indexOf(fieldKey) + 1}
       onFieldChange={handleFieldChange}
       onToggleHelp={setHelpOpen}
       onActivate={activateField}
@@ -460,60 +469,68 @@ export default function LeanCanvas() {
   );
 
   return (
-    <div style={{ fontFamily: "Plus Jakarta Sans, sans-serif", background: "#FAF8F5", minHeight: "100vh", padding: "24px 20px", boxSizing: "border-box" }}>
+    <div style={{ fontFamily: "Plus Jakarta Sans, sans-serif", background: "#FAFAFA", minHeight: "100vh", padding: "24px 20px", boxSizing: "border-box", color: "#1A1A1A" }}>
       <style>{GOOGLE_FONT}</style>
-      <style>{`* { box-sizing: border-box; } textarea::placeholder { color: #bbb; } input::placeholder { color: #bbb; } textarea:focus, input:focus { outline: none; } button:hover { filter: brightness(1.08); }`}</style>
+      <style>{`* { box-sizing: border-box; } textarea::placeholder { color: #c4c4c4; } input::placeholder { color: #c4c4c4; } textarea:focus, input:focus { outline: none; } button:hover { filter: brightness(1.05); }`}</style>
 
       {/* Header */}
-      <div style={{ textAlign: "center", marginBottom: 24 }}>
-        <h1 style={{ fontSize: 28, fontWeight: 700, color: "#2C2420", margin: "0 0 4px", letterSpacing: -0.5 }}>Lean Canvas</h1>
-        <p style={{ color: "#7a7069", fontSize: 14, margin: 0 }}>
-          Dein interaktives Business-Modell-Tool •{" "}
-          <span style={{ color: "#5A8A6B", fontWeight: 500 }}>✓ Eingaben werden lokal gespeichert</span>
+      <div style={{ textAlign: "center", marginBottom: 18 }}>
+        <h1 style={{ fontSize: 26, fontWeight: 700, color: "#1A1A1A", margin: "0 0 4px", letterSpacing: -0.5 }}>Lean Canvas</h1>
+        <p style={{ color: "#7a7069", fontSize: 13, margin: 0 }}>
+          Interaktives Business-Modell-Tool · <span style={{ color: "#5A8A6B", fontWeight: 500 }}>✓ Eingaben werden lokal gespeichert</span>
         </p>
       </div>
 
+      {/* Intro card */}
+      <div style={{
+        maxWidth: 760, margin: "0 auto 18px", padding: "12px 18px",
+        background: "#fff", border: "1px solid #ECEAE6", borderRadius: 10,
+        fontSize: 13, color: "#3a3a3a", textAlign: "center", lineHeight: 1.55,
+      }}>
+        <strong style={{ color: "#1A1A1A", fontWeight: 600 }}>So gehst du vor:</strong>{" "}
+        1. Kontext wählen · 2. Modus auswählen (Selbst oder Geführt) · 3. Felder in der Reihenfolge 1–9 ausfüllen — Problem zuerst.
+      </div>
+
       {/* Context selector */}
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center", marginBottom: 16 }}>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center", marginBottom: 12 }}>
         {Object.entries(CONTEXTS).map(([key, ctx]) => (
           <button key={key} onClick={() => setContext(key)} style={{
-            background: context === key ? "#2C2420" : "#fff",
-            color: context === key ? "#fff" : "#2C2420",
-            border: `2px solid ${context === key ? "#2C2420" : "#ddd5cc"}`,
-            borderRadius: 10, padding: "8px 16px", fontSize: 13, cursor: "pointer",
+            background: context === key ? "#1A1A1A" : "#fff",
+            color: context === key ? "#fff" : "#1A1A1A",
+            border: `1px solid ${context === key ? "#1A1A1A" : "#E5E3DF"}`,
+            borderRadius: 8, padding: "7px 14px", fontSize: 13, cursor: "pointer",
             fontFamily: "Plus Jakarta Sans, sans-serif",
-            fontWeight: context === key ? 600 : 400, transition: "all 0.15s",
-            boxShadow: context === key ? "0 2px 8px rgba(44,36,32,0.2)" : "none",
+            fontWeight: context === key ? 600 : 500, transition: "all 0.15s",
           }}>{ctx.label}</button>
         ))}
       </div>
 
       {context && (
         <div style={{ textAlign: "center", marginBottom: 16 }}>
-          <span style={{ fontSize: 12, color: "#9a897e", background: "#F0EBE5", padding: "4px 12px", borderRadius: 20 }}>
-            Beispielkontext: <strong>{CONTEXTS[context].example}</strong>
+          <span style={{ fontSize: 12, color: "#7a7069", background: "#F2F2F0", padding: "4px 12px", borderRadius: 20, border: "1px solid #ECEAE6" }}>
+            Beispielkontext: <strong style={{ color: "#1A1A1A" }}>{CONTEXTS[context].example}</strong>
           </span>
         </div>
       )}
 
       {/* Mode toggle */}
-      <div style={{ display: "flex", justifyContent: "center", marginBottom: 24 }}>
-        <div style={{ background: "#EDE8E0", borderRadius: 12, padding: 4, display: "flex", gap: 4 }}>
+      <div style={{ display: "flex", justifyContent: "center", marginBottom: 22 }}>
+        <div style={{ background: "#F2F2F0", border: "1px solid #ECEAE6", borderRadius: 9, padding: 3, display: "flex", gap: 3 }}>
           {[["self", "✏️ Selbst ausfüllen"], ["guided", "✨ Geführter Modus"]].map(([val, lbl]) => (
             <button key={val} onClick={() => { setMode(val); if (val === "guided") { setGuidedStep(0); setChatInput(""); } }} style={{
-              background: mode === val ? "#2C2420" : "transparent",
-              color: mode === val ? "#fff" : "#6a5a50",
-              border: "none", borderRadius: 9, padding: "8px 18px", fontSize: 13, cursor: "pointer",
+              background: mode === val ? "#1A1A1A" : "transparent",
+              color: mode === val ? "#fff" : "#5a5a5a",
+              border: "none", borderRadius: 6, padding: "7px 16px", fontSize: 13, cursor: "pointer",
               fontFamily: "Plus Jakarta Sans, sans-serif",
-              fontWeight: mode === val ? 600 : 400, transition: "all 0.15s",
+              fontWeight: mode === val ? 600 : 500, transition: "all 0.15s",
             }}>{lbl}</button>
           ))}
         </div>
       </div>
 
       {mode === "guided" && (
-        <div style={{ textAlign: "center", marginBottom: 20, fontSize: 13, color: "#5A8A6B", background: "#F0F7F3", padding: "10px 20px", borderRadius: 10, maxWidth: 560, margin: "0 auto 20px" }}>
-          ✨ Der Coach führt dich Schritt für Schritt durch den Canvas. Klicke auf ein Feld um dorthin zu springen.
+        <div style={{ textAlign: "center", marginBottom: 18, fontSize: 13, color: "#3a3a3a", background: "#fff", border: "1px solid #ECEAE6", padding: "10px 20px", borderRadius: 10, maxWidth: 560, margin: "0 auto 18px" }}>
+          ✨ Der Coach führt dich Schritt für Schritt durch den Canvas. Klicke auf ein Feld, um dorthin zu springen.
         </div>
       )}
 
@@ -558,40 +575,39 @@ export default function LeanCanvas() {
       </div>
 
       {/* Action buttons */}
-      <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
+      <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
         <button onClick={copyAsText} style={{
-          background: copySuccess ? "#5A8A6B" : "#fff", color: copySuccess ? "#fff" : "#2C2420",
-          border: "2px solid #ddd5cc", borderRadius: 10, padding: "10px 20px", fontSize: 14,
+          background: copySuccess ? "#5A8A6B" : "#fff", color: copySuccess ? "#fff" : "#1A1A1A",
+          border: `1px solid ${copySuccess ? "#5A8A6B" : "#E5E3DF"}`, borderRadius: 8, padding: "9px 18px", fontSize: 13,
           cursor: "pointer", fontFamily: "Plus Jakarta Sans, sans-serif", fontWeight: 500, transition: "all 0.2s",
         }}>{copySuccess ? "✅ Kopiert!" : "📋 Als Text kopieren"}</button>
         <button onClick={downloadAsMarkdown} style={{
-          background: "#fff", color: "#2C2420", border: "2px solid #ddd5cc",
-          borderRadius: 10, padding: "10px 20px", fontSize: 14, cursor: "pointer",
+          background: "#fff", color: "#1A1A1A", border: "1px solid #E5E3DF",
+          borderRadius: 8, padding: "9px 18px", fontSize: 13, cursor: "pointer",
           fontFamily: "Plus Jakarta Sans, sans-serif", fontWeight: 500,
         }}>📥 Als Markdown herunterladen</button>
         <button onClick={() => setShowClearDialog(true)} style={{
-          background: "#fff", color: "#C17B5A", border: "2px solid #f0c8b4",
-          borderRadius: 10, padding: "10px 20px", fontSize: 14, cursor: "pointer",
+          background: "#fff", color: "#B05A3F", border: "1px solid #ECD8CB",
+          borderRadius: 8, padding: "9px 18px", fontSize: 13, cursor: "pointer",
           fontFamily: "Plus Jakarta Sans, sans-serif", fontWeight: 500,
         }}>🔄 Canvas leeren</button>
       </div>
 
       {/* Clear dialog */}
       {showClearDialog && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
-          <div style={{ background: "#fff", borderRadius: 16, padding: 32, maxWidth: 380, width: "90%", textAlign: "center", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
-            <div style={{ fontSize: 40, marginBottom: 12 }}>🔄</div>
-            <h3 style={{ margin: "0 0 8px", color: "#2C2420", fontSize: 18 }}>Canvas wirklich leeren?</h3>
-            <p style={{ color: "#7a7069", fontSize: 14, margin: "0 0 20px" }}>Alle eingegebenen Inhalte werden unwiderruflich gelöscht.</p>
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
+          <div style={{ background: "#fff", border: "1px solid #ECEAE6", borderRadius: 12, padding: 28, maxWidth: 380, width: "90%", textAlign: "center", boxShadow: "0 20px 60px rgba(0,0,0,0.18)" }}>
+            <h3 style={{ margin: "0 0 8px", color: "#1A1A1A", fontSize: 17, fontWeight: 600 }}>Canvas wirklich leeren?</h3>
+            <p style={{ color: "#7a7069", fontSize: 13, margin: "0 0 20px" }}>Alle eingegebenen Inhalte werden unwiderruflich gelöscht.</p>
             <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
-              <button onClick={() => setShowClearDialog(false)} style={{ background: "#EDE8E0", color: "#2C2420", border: "none", borderRadius: 10, padding: "10px 22px", fontSize: 14, cursor: "pointer", fontFamily: "Plus Jakarta Sans, sans-serif", fontWeight: 500 }}>Abbrechen</button>
-              <button onClick={clearCanvas} style={{ background: "#C17B5A", color: "#fff", border: "none", borderRadius: 10, padding: "10px 22px", fontSize: 14, cursor: "pointer", fontFamily: "Plus Jakarta Sans, sans-serif", fontWeight: 600 }}>Ja, leeren</button>
+              <button onClick={() => setShowClearDialog(false)} style={{ background: "#fff", color: "#1A1A1A", border: "1px solid #E5E3DF", borderRadius: 8, padding: "9px 20px", fontSize: 13, cursor: "pointer", fontFamily: "Plus Jakarta Sans, sans-serif", fontWeight: 500 }}>Abbrechen</button>
+              <button onClick={clearCanvas} style={{ background: "#B05A3F", color: "#fff", border: "1px solid #B05A3F", borderRadius: 8, padding: "9px 20px", fontSize: 13, cursor: "pointer", fontFamily: "Plus Jakarta Sans, sans-serif", fontWeight: 600 }}>Ja, leeren</button>
             </div>
           </div>
         </div>
       )}
 
-      <p style={{ textAlign: "center", fontSize: 12, color: "#bbb", marginTop: 20 }}>Lean Canvas • Powered by Claude API</p>
+      <p style={{ textAlign: "center", fontSize: 12, color: "#bbb", marginTop: 20 }}>Lean Canvas · Powered by Claude API</p>
     </div>
   );
 }
