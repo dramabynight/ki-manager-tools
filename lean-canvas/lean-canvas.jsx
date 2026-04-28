@@ -410,7 +410,7 @@ function FieldCard({
 // ── Main component ────────────────────────────────────────────────────────────
 export default function LeanCanvas() {
   const [context, setContext] = useState("digital");
-  const [mode, setMode] = useState("self");
+  const [mode, setMode] = useState("guided");
   const [fields, setFields] = useState({});
   const [helpOpen, setHelpOpen] = useState(null);
   const [guidedStep, setGuidedStep] = useState(0);
