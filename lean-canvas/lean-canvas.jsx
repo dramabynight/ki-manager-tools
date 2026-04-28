@@ -45,7 +45,16 @@ const FIELD_COLORS = {
 // Ideal sequence for guided coaching (Ash Maurya order)
 const GUIDED_SEQUENCE = ["problem", "customers", "uvp", "solution", "channels", "revenue", "costs", "metrics", "unfair"];
 
-const SYSTEM_PROMPT = `Du bist ein Lean Canvas Coach. Antworte IMMER auf Deutsch. Hilf dem User EIN spezifisches Feld auszufüllen ODER zu schärfen, falls bereits Inhalt vorhanden ist. Stelle 1-2 gezielte, konkrete Fragen. Fülle das Feld NIE selbst aus. Wenn der User bereits eigenen Inhalt im Feld hat, beziehe dich KONKRET auf diesen Inhalt — wiederhole keine generischen Einstiegsfragen. Wenn der User antwortet, fasse kurz zusammen und schlage eine knappe, prägnante Formulierung vor (maximal 3-4 Sätze oder Stichpunkte). Formatiere deinen Formulierungsvorschlag mit dem Präfix "💡 Vorschlag:". Halte dich kurz und fokussiert.`;
+const SYSTEM_PROMPT = `Du bist ein Lean Canvas Coach. Antworte IMMER auf Deutsch.
+
+REGELN für JEDE Nachricht:
+- Maximal 3-4 Sätze. Keine Aufzählungen außer beim Vorschlag.
+- Stelle pro Nachricht NUR EINE konkrete Frage. Step-by-step, nicht alles auf einmal.
+- Fülle das Feld NIE selbst aus.
+
+Wenn der User bereits Inhalt im Feld hat: beziehe dich KONKRET auf diesen Inhalt mit einer einzigen schärfenden Frage. Keine Würdigung, keine Zusammenfassung, kein "ich höre…". Direkt zur Frage.
+
+Wenn der User antwortet und du genug Substanz hast (nach 2-4 Turns), schlage eine knappe, prägnante Formulierung für das Feld vor. Format: zuerst max. 1 Satz Kommentar, dann auf neuer Zeile "💡 Vorschlag:" gefolgt vom konkreten Text (max 3-4 Sätze oder Stichpunkte).`;
 
 // ── API helper ────────────────────────────────────────────────────────────────
 async function callClaude(messages, system) {
@@ -347,9 +356,9 @@ export default function LeanCanvas() {
     const contextNote = filledContext ? `\n\nBereits ausgefüllte Felder (zur Orientierung):\n${filledContext}` : "";
     const currentValue = fields[fieldKey]?.trim();
     const currentValueNote = currentValue
-      ? `\n\nDer Nutzer hat bereits Folgendes in dieses Feld geschrieben:\n"${currentValue}"\n\nDeine Aufgabe: Lies diesen Inhalt aufmerksam, würdige ihn kurz, und stelle dann 1-2 gezielte Fragen, um ihn zu schärfen oder zu hinterfragen. Frage NICHT von vorne — beziehe dich konkret auf den Text.`
-      : "";
-    const prompt = `Hilf mir das Feld "${fieldLabel}" im Lean Canvas zu bearbeiten. Kontext: ${CONTEXTS[context].example}. ${help.explanation} Leitfrage: ${help.question}${contextNote}${currentValueNote}`;
+      ? `\n\nDer Nutzer hat bereits geschrieben: "${currentValue}". Stelle EINE gezielte Frage, die genau diesen Inhalt schärft. Keine Würdigung, keine Wiederholung der Leitfrage.`
+      : ` Stelle EINE einstiegsfreundliche Frage, um das Feld zu starten.`;
+    const prompt = `Feld: "${fieldLabel}". Kontext: ${CONTEXTS[context].example}. ${help.explanation} Leitfrage: ${help.question}${contextNote}${currentValueNote}`;
 
     setChatMessages(prev => ({ ...prev, [fieldKey]: [] }));
     setLoading(true);
