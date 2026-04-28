@@ -45,7 +45,7 @@ const FIELD_COLORS = {
 // Ideal sequence for guided coaching (Ash Maurya order)
 const GUIDED_SEQUENCE = ["problem", "customers", "uvp", "solution", "channels", "revenue", "costs", "metrics", "unfair"];
 
-const SYSTEM_PROMPT = `Du bist ein Lean Canvas Coach. Antworte IMMER auf Deutsch. Hilf dem User EIN spezifisches Feld auszufüllen. Stelle 1-2 gezielte, konkrete Fragen. Fülle das Feld NIE selbst aus. Wenn der User antwortet, fasse kurz zusammen und schlage eine knappe, prägnante Formulierung vor (maximal 3-4 Sätze oder Stichpunkte). Formatiere deinen Formulierungsvorschlag mit dem Präfix "💡 Vorschlag:". Halte dich kurz und fokussiert.`;
+const SYSTEM_PROMPT = `Du bist ein Lean Canvas Coach. Antworte IMMER auf Deutsch. Hilf dem User EIN spezifisches Feld auszufüllen ODER zu schärfen, falls bereits Inhalt vorhanden ist. Stelle 1-2 gezielte, konkrete Fragen. Fülle das Feld NIE selbst aus. Wenn der User bereits eigenen Inhalt im Feld hat, beziehe dich KONKRET auf diesen Inhalt — wiederhole keine generischen Einstiegsfragen. Wenn der User antwortet, fasse kurz zusammen und schlage eine knappe, prägnante Formulierung vor (maximal 3-4 Sätze oder Stichpunkte). Formatiere deinen Formulierungsvorschlag mit dem Präfix "💡 Vorschlag:". Halte dich kurz und fokussiert.`;
 
 // ── API helper ────────────────────────────────────────────────────────────────
 async function callClaude(messages, system) {
@@ -345,7 +345,11 @@ export default function LeanCanvas() {
       .join("\n");
 
     const contextNote = filledContext ? `\n\nBereits ausgefüllte Felder (zur Orientierung):\n${filledContext}` : "";
-    const prompt = `Hilf mir das Feld "${fieldLabel}" im Lean Canvas auszufüllen. Kontext: ${CONTEXTS[context].example}. ${help.explanation} Leitfrage: ${help.question}${contextNote}`;
+    const currentValue = fields[fieldKey]?.trim();
+    const currentValueNote = currentValue
+      ? `\n\nDer Nutzer hat bereits Folgendes in dieses Feld geschrieben:\n"${currentValue}"\n\nDeine Aufgabe: Lies diesen Inhalt aufmerksam, würdige ihn kurz, und stelle dann 1-2 gezielte Fragen, um ihn zu schärfen oder zu hinterfragen. Frage NICHT von vorne — beziehe dich konkret auf den Text.`
+      : "";
+    const prompt = `Hilf mir das Feld "${fieldLabel}" im Lean Canvas zu bearbeiten. Kontext: ${CONTEXTS[context].example}. ${help.explanation} Leitfrage: ${help.question}${contextNote}${currentValueNote}`;
 
     setChatMessages(prev => ({ ...prev, [fieldKey]: [] }));
     setLoading(true);
@@ -378,8 +382,10 @@ export default function LeanCanvas() {
     setLoading(true);
 
     const help = FIELD_HELP[fieldKey];
+    const currentVal = fields[fieldKey]?.trim();
+    const currentValPrefix = currentVal ? ` Der Nutzer hat aktuell folgenden Inhalt im Feld: "${currentVal}".` : "";
     const apiMessages = [
-      { role: "user", content: `Feld: "${getFieldLabel(fieldKey)}". Kontext: ${CONTEXTS[context].example}. ${help.explanation}` },
+      { role: "user", content: `Feld: "${getFieldLabel(fieldKey)}". Kontext: ${CONTEXTS[context].example}. ${help.explanation}${currentValPrefix}` },
       ...newMessages,
     ];
 
@@ -474,53 +480,48 @@ export default function LeanCanvas() {
       <style>{`* { box-sizing: border-box; } textarea::placeholder { color: #c4c4c4; } input::placeholder { color: #c4c4c4; } textarea:focus, input:focus { outline: none; } button:hover { filter: brightness(1.05); }`}</style>
 
       {/* Header */}
-      <div style={{ textAlign: "center", marginBottom: 18 }}>
-        <h1 style={{ fontSize: 26, fontWeight: 700, color: "#1A1A1A", margin: "0 0 4px", letterSpacing: -0.5 }}>Lean Canvas</h1>
-        <p style={{ color: "#7a7069", fontSize: 13, margin: 0 }}>
-          Interaktives Business-Modell-Tool · <span style={{ color: "#5A8A6B", fontWeight: 500 }}>✓ Eingaben werden lokal gespeichert</span>
+      <div style={{ textAlign: "center", marginBottom: 14 }}>
+        <h1 style={{ fontSize: 24, fontWeight: 700, color: "#1A1A1A", margin: "0 0 3px", letterSpacing: -0.4 }}>Lean Canvas</h1>
+        <p style={{ color: "#7a7069", fontSize: 12, margin: 0 }}>
+          Interaktives Business-Modell-Tool · <span style={{ color: "#5A8A6B", fontWeight: 500 }}>✓ Eingaben lokal gespeichert</span>
         </p>
       </div>
 
-      {/* Intro card */}
+      {/* Intro + controls — single compact row */}
       <div style={{
-        maxWidth: 760, margin: "0 auto 18px", padding: "12px 18px",
+        maxWidth: 1180, margin: "0 auto 14px", padding: "10px 16px",
         background: "#fff", border: "1px solid #ECEAE6", borderRadius: 10,
-        fontSize: 13, color: "#3a3a3a", textAlign: "center", lineHeight: 1.55,
+        display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 12,
+        fontSize: 12, color: "#3a3a3a", lineHeight: 1.5,
       }}>
-        <strong style={{ color: "#1A1A1A", fontWeight: 600 }}>So gehst du vor:</strong>{" "}
-        1. Kontext wählen · 2. Modus auswählen (Selbst oder Geführt) · 3. Felder in der Reihenfolge 1–9 ausfüllen — Problem zuerst.
+        <span>
+          <strong style={{ color: "#1A1A1A", fontWeight: 600 }}>So gehst du vor:</strong>{" "}
+          1. Kontext · 2. Modus · 3. Felder 1–9 (Problem zuerst).{" "}
+          <span title="Ash Maurya empfiehlt diese Reihenfolge: erst Probleme & Kunden klären, dann Wertversprechen, Lösung & Wirtschaftlichkeit. Die räumliche Anordnung folgt der klassischen Canvas-Optik — die Nummern führen dich durch die methodisch sinnvolle Bearbeitungsreihenfolge." style={{ color: "#5A8A6B", cursor: "help", fontWeight: 600 }}>ⓘ Wieso 1–9?</span>
+        </span>
       </div>
 
-      {/* Context selector */}
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center", marginBottom: 12 }}>
-        {Object.entries(CONTEXTS).map(([key, ctx]) => (
-          <button key={key} onClick={() => setContext(key)} style={{
-            background: context === key ? "#1A1A1A" : "#fff",
-            color: context === key ? "#fff" : "#1A1A1A",
-            border: `1px solid ${context === key ? "#1A1A1A" : "#E5E3DF"}`,
-            borderRadius: 8, padding: "7px 14px", fontSize: 13, cursor: "pointer",
-            fontFamily: "Plus Jakarta Sans, sans-serif",
-            fontWeight: context === key ? 600 : 500, transition: "all 0.15s",
-          }}>{ctx.label}</button>
-        ))}
-      </div>
-
-      {context && (
-        <div style={{ textAlign: "center", marginBottom: 16 }}>
-          <span style={{ fontSize: 12, color: "#7a7069", background: "#F2F2F0", padding: "4px 12px", borderRadius: 20, border: "1px solid #ECEAE6" }}>
-            Beispielkontext: <strong style={{ color: "#1A1A1A" }}>{CONTEXTS[context].example}</strong>
-          </span>
+      {/* Context selector + Mode toggle in one row */}
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center", justifyContent: "center", marginBottom: 16 }}>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "center" }}>
+          {Object.entries(CONTEXTS).map(([key, ctx]) => (
+            <button key={key} onClick={() => setContext(key)} style={{
+              background: context === key ? "#1A1A1A" : "#fff",
+              color: context === key ? "#fff" : "#1A1A1A",
+              border: `1px solid ${context === key ? "#1A1A1A" : "#E5E3DF"}`,
+              borderRadius: 8, padding: "6px 12px", fontSize: 12, cursor: "pointer",
+              fontFamily: "Plus Jakarta Sans, sans-serif",
+              fontWeight: context === key ? 600 : 500, transition: "all 0.15s",
+            }}>{ctx.label}</button>
+          ))}
         </div>
-      )}
-
-      {/* Mode toggle */}
-      <div style={{ display: "flex", justifyContent: "center", marginBottom: 22 }}>
-        <div style={{ background: "#F2F2F0", border: "1px solid #ECEAE6", borderRadius: 9, padding: 3, display: "flex", gap: 3 }}>
+        <div style={{ width: 1, height: 24, background: "#E5E3DF", margin: "0 4px" }} />
+        <div style={{ background: "#F2F2F0", border: "1px solid #ECEAE6", borderRadius: 8, padding: 3, display: "flex", gap: 3 }}>
           {[["self", "✏️ Selbst ausfüllen"], ["guided", "✨ Geführter Modus"]].map(([val, lbl]) => (
             <button key={val} onClick={() => { setMode(val); if (val === "guided") { setGuidedStep(0); setChatInput(""); } }} style={{
               background: mode === val ? "#1A1A1A" : "transparent",
               color: mode === val ? "#fff" : "#5a5a5a",
-              border: "none", borderRadius: 6, padding: "7px 16px", fontSize: 13, cursor: "pointer",
+              border: "none", borderRadius: 6, padding: "6px 14px", fontSize: 12, cursor: "pointer",
               fontFamily: "Plus Jakarta Sans, sans-serif",
               fontWeight: mode === val ? 600 : 500, transition: "all 0.15s",
             }}>{lbl}</button>
@@ -540,15 +541,15 @@ export default function LeanCanvas() {
         {/* Canvas grid */}
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(10, 1fr)", gridTemplateRows: "auto auto auto", gap: 12 }}>
-            {card("problem",   { gridColumn: "1 / 3",  gridRow: "1 / 3", minHeight: 200 })}
-            {card("solution",  { gridColumn: "3 / 5",  gridRow: "1 / 2", minHeight: 90 })}
-            {card("uvp",       { gridColumn: "5 / 7",  gridRow: "1 / 3", minHeight: 200 })}
-            {card("unfair",    { gridColumn: "7 / 9",  gridRow: "1 / 2", minHeight: 90 })}
-            {card("customers", { gridColumn: "9 / 11", gridRow: "1 / 3", minHeight: 200 })}
-            {card("metrics",   { gridColumn: "3 / 5",  gridRow: "2 / 3", minHeight: 90 })}
-            {card("channels",  { gridColumn: "7 / 9",  gridRow: "2 / 3", minHeight: 90 })}
-            {card("costs",     { gridColumn: "1 / 6",  gridRow: "3 / 4", minHeight: 90 })}
-            {card("revenue",   { gridColumn: "6 / 11", gridRow: "3 / 4", minHeight: 90 })}
+            {card("problem",   { gridColumn: "1 / 3",  gridRow: "1 / 3", minHeight: 280 })}
+            {card("solution",  { gridColumn: "3 / 5",  gridRow: "1 / 2", minHeight: 135 })}
+            {card("uvp",       { gridColumn: "5 / 7",  gridRow: "1 / 3", minHeight: 280 })}
+            {card("unfair",    { gridColumn: "7 / 9",  gridRow: "1 / 2", minHeight: 135 })}
+            {card("customers", { gridColumn: "9 / 11", gridRow: "1 / 3", minHeight: 280 })}
+            {card("metrics",   { gridColumn: "3 / 5",  gridRow: "2 / 3", minHeight: 135 })}
+            {card("channels",  { gridColumn: "7 / 9",  gridRow: "2 / 3", minHeight: 135 })}
+            {card("costs",     { gridColumn: "1 / 6",  gridRow: "3 / 4", minHeight: 130 })}
+            {card("revenue",   { gridColumn: "6 / 11", gridRow: "3 / 4", minHeight: 130 })}
           </div>
         </div>
 
