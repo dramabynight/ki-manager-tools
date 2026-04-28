@@ -91,10 +91,12 @@ async function callClaude(messages, system) {
 function GuidedPanel({
   currentFieldKey, currentStep, totalSteps, colors, label, importHint,
   msgs, loading, chatInput, hasSuggestion, chatEndRef,
-  onSendMessage, onChatInputChange, onAdoptSuggestion, onNext, onBack,
+  emptyCount, firstEmptyIndex, firstEmptyLabel,
+  onSendMessage, onChatInputChange, onAdoptSuggestion, onNext, onBack, onJumpToFirstEmpty,
 }) {
   const progress = ((currentStep + 1) / totalSteps) * 100;
   const isLast = currentStep === totalSteps - 1;
+  const allFilled = emptyCount === 0;
 
   return (
     <div style={{
@@ -207,6 +209,28 @@ function GuidedPanel({
         >→</button>
       </div>
 
+      {/* Empty-fields indicator */}
+      {emptyCount > 0 && (
+        <div style={{
+          padding: "6px 14px", fontSize: 11, color: "#7a7069",
+          borderTop: `1px solid ${colors.bg}`, background: "#FAFAF8",
+          display: "flex", justifyContent: "space-between", alignItems: "center", flexShrink: 0,
+        }}>
+          <span>Noch {emptyCount} {emptyCount === 1 ? "Feld" : "Felder"} leer</span>
+          {firstEmptyLabel && currentStep !== firstEmptyIndex && (
+            <button
+              onClick={onJumpToFirstEmpty}
+              style={{
+                background: "transparent", color: colors.header,
+                border: "none", padding: 0, fontSize: 11, cursor: "pointer",
+                fontFamily: "Plus Jakarta Sans, sans-serif", fontWeight: 600,
+                textDecoration: "underline",
+              }}
+            >→ {firstEmptyLabel}</button>
+          )}
+        </div>
+      )}
+
       {/* Navigation */}
       <div style={{
         display: "flex", justifyContent: "space-between", padding: "10px 14px",
@@ -224,15 +248,27 @@ function GuidedPanel({
             fontFamily: "Plus Jakarta Sans, sans-serif", fontWeight: 500,
           }}
         >← Zurück</button>
-        <button
-          onClick={onNext}
-          style={{
-            background: isLast ? colors.header : colors.bg,
-            color: isLast ? "#fff" : "#555",
-            border: "none", borderRadius: 8, padding: "7px 16px", fontSize: 13,
-            cursor: "pointer", fontFamily: "Plus Jakarta Sans, sans-serif", fontWeight: 600,
-          }}
-        >{isLast ? "✓ Fertig" : "Nächster Bereich →"}</button>
+        {isLast && !allFilled ? (
+          <button
+            onClick={onJumpToFirstEmpty}
+            style={{
+              background: colors.header, color: "#fff",
+              border: "none", borderRadius: 8, padding: "7px 16px", fontSize: 13,
+              cursor: "pointer", fontFamily: "Plus Jakarta Sans, sans-serif", fontWeight: 600,
+            }}
+            title={`Springt zum ersten leeren Feld: ${firstEmptyLabel}`}
+          >→ Zu {firstEmptyLabel}</button>
+        ) : (
+          <button
+            onClick={onNext}
+            style={{
+              background: isLast ? colors.header : colors.bg,
+              color: isLast ? "#fff" : "#555",
+              border: "none", borderRadius: 8, padding: "7px 16px", fontSize: 13,
+              cursor: "pointer", fontFamily: "Plus Jakarta Sans, sans-serif", fontWeight: 600,
+            }}
+          >{isLast ? "✓ Fertig" : "Nächster Bereich →"}</button>
+        )}
       </div>
     </div>
   );
@@ -496,6 +532,10 @@ export default function LeanCanvas() {
   };
 
   const currentGuidedKey = GUIDED_SEQUENCE[guidedStep];
+  const firstEmptyIndex = GUIDED_SEQUENCE.findIndex(k => !fields[k]?.trim());
+  const emptyCount = GUIDED_SEQUENCE.filter(k => !fields[k]?.trim()).length;
+  const firstEmptyLabel = firstEmptyIndex >= 0 ? getFieldLabel(GUIDED_SEQUENCE[firstEmptyIndex]) : null;
+  const jumpToFirstEmpty = () => { if (firstEmptyIndex >= 0) goToStep(firstEmptyIndex); };
 
   const card = (fieldKey, gridStyle) => (
     <FieldCard
@@ -611,6 +651,9 @@ export default function LeanCanvas() {
             chatInput={chatInput}
             hasSuggestion={!!suggestion[currentGuidedKey]}
             chatEndRef={chatEndRef}
+            emptyCount={emptyCount}
+            firstEmptyIndex={firstEmptyIndex}
+            firstEmptyLabel={firstEmptyLabel}
             onSendMessage={sendChatMessage}
             onChatInputChange={setChatInput}
             onAdoptSuggestion={adoptSuggestion}
@@ -622,6 +665,7 @@ export default function LeanCanvas() {
               if (guidedStep < GUIDED_SEQUENCE.length - 1) goToStep(guidedStep + 1);
             }}
             onBack={() => guidedStep > 0 ? goToStep(guidedStep - 1) : null}
+            onJumpToFirstEmpty={jumpToFirstEmpty}
           />
         )}
       </div>
