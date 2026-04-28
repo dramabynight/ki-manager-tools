@@ -302,6 +302,30 @@ function FieldCard({
   onFieldChange, onToggleHelp, onActivate,
 }) {
   const isFilled = !!fieldValue?.trim();
+  const helpBtnRef = useRef(null);
+  const [helpPos, setHelpPos] = useState(null);
+
+  useEffect(() => {
+    if (!isHelpOpen) { setHelpPos(null); return; }
+    const compute = () => {
+      const btn = helpBtnRef.current;
+      if (!btn) return;
+      const r = btn.getBoundingClientRect();
+      const width = 300;
+      const margin = 12;
+      let right = Math.max(margin, window.innerWidth - r.right);
+      if (right + width > window.innerWidth - margin) right = margin;
+      setHelpPos({ top: r.bottom + 6, right });
+    };
+    compute();
+    const close = () => onToggleHelp(null);
+    window.addEventListener("scroll", close, true);
+    window.addEventListener("resize", close);
+    return () => {
+      window.removeEventListener("scroll", close, true);
+      window.removeEventListener("resize", close);
+    };
+  }, [isHelpOpen, onToggleHelp]);
   return (
     <div
       onClick={mode === "guided" ? () => onActivate(fieldKey) : undefined}
@@ -346,6 +370,7 @@ function FieldCard({
             </span>
           )}
           <button
+            ref={helpBtnRef}
             onClick={(e) => { e.stopPropagation(); onToggleHelp(isHelpOpen ? null : fieldKey); }}
             title="Mehr Infos & Beispiel"
             style={{
@@ -363,32 +388,38 @@ function FieldCard({
         {help.question}
       </div>
 
-      {/* Help overlay — fills the whole card so it never gets clipped */}
-      {isHelpOpen && (
-        <div
-          onClick={(e) => e.stopPropagation()}
-          style={{
-            position: "absolute", inset: 0, zIndex: 51,
-            background: "#fff",
-            display: "flex", flexDirection: "column",
-            fontSize: 12, color: "#3a3a3a", lineHeight: 1.55,
-          }}
-        >
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, padding: "10px 12px 6px", borderBottom: "1px solid #ECEAE6", flexShrink: 0 }}>
-            <strong style={{ color: colors.header, fontSize: 13 }}>{label}</strong>
-            <button
-              onClick={(e) => { e.stopPropagation(); onToggleHelp(null); }}
-              title="Schließen"
-              style={{ background: "transparent", border: "1px solid #E5E3DF", borderRadius: 4, cursor: "pointer", color: "#7a7069", padding: "2px 4px", display: "inline-flex" }}
-            ><X size={14} /></button>
-          </div>
-          <div style={{ flex: 1, overflowY: "auto", padding: "10px 12px" }}>
+      {/* Help popover — position:fixed escapes overflow:hidden of the card */}
+      {isHelpOpen && helpPos && (
+        <>
+          <div
+            onClick={(e) => { e.stopPropagation(); onToggleHelp(null); }}
+            style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.05)", zIndex: 60 }}
+          />
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              position: "fixed", top: helpPos.top, right: helpPos.right, zIndex: 61,
+              width: 300, maxHeight: "60vh", overflowY: "auto",
+              background: "#fff", border: "1px solid #ECEAE6",
+              boxShadow: "0 12px 32px rgba(0,0,0,0.14)",
+              borderRadius: 10, padding: "12px 14px",
+              fontSize: 12, color: "#3a3a3a", lineHeight: 1.55,
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8, marginBottom: 8 }}>
+              <strong style={{ color: colors.header, fontSize: 12.5 }}>{label}</strong>
+              <button
+                onClick={(e) => { e.stopPropagation(); onToggleHelp(null); }}
+                title="Schließen"
+                style={{ background: "transparent", border: "none", cursor: "pointer", color: "#7a7069", padding: 2, display: "inline-flex" }}
+              ><X size={14} /></button>
+            </div>
             <p style={{ margin: "0 0 10px" }}>{help.explanation}</p>
             <p style={{ margin: 0, color: "#7a7069", fontSize: 11.5 }}>
               <strong style={{ color: colors.header }}>Beispiel ({contextShort}):</strong> {help.examples[contextKey]}
             </p>
           </div>
-        </div>
+        </>
       )}
 
       {/* Textarea */}
