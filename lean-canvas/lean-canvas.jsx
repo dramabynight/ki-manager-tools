@@ -56,6 +56,19 @@ Wenn der User bereits Inhalt im Feld hat: beziehe dich KONKRET auf diesen Inhalt
 
 Wenn der User antwortet und du genug Substanz hast (nach 2-4 Turns), schlage eine knappe, prägnante Formulierung für das Feld vor. Format: zuerst max. 1 Satz Kommentar, dann auf neuer Zeile "💡 Vorschlag:" gefolgt vom konkreten Text (max 3-4 Sätze oder Stichpunkte).`;
 
+// ── Inline markdown helper (handles **bold**) ─────────────────────────────────
+function renderInlineMarkdown(text) {
+  if (!text) return null;
+  const parts = text.split(/(\*\*[^*\n]+\*\*)/g);
+  return parts.map((part, i) =>
+    part.startsWith("**") && part.endsWith("**")
+      ? <strong key={i}>{part.slice(2, -2)}</strong>
+      : <span key={i}>{part}</span>
+  );
+}
+
+const stripMarkdown = (text) => (text || "").replace(/\*\*([^*\n]+)\*\*/g, "$1");
+
 // ── API helper ────────────────────────────────────────────────────────────────
 async function callClaude(messages, system) {
   if (USE_PROXY) {
@@ -126,7 +139,7 @@ function GuidedPanel({
             borderRadius: msg.role === "user" ? "12px 12px 2px 12px" : "12px 12px 12px 2px",
             padding: "8px 11px", fontSize: 13, maxWidth: "92%", lineHeight: 1.55, whiteSpace: "pre-wrap",
           }}>
-            {msg.content}
+            {renderInlineMarkdown(msg.content)}
           </div>
         ))}
         {loading && msgs.length > 0 && (
@@ -415,7 +428,7 @@ export default function LeanCanvas() {
 
   const adoptSuggestion = (fieldKey) => {
     if (!suggestion[fieldKey]) return;
-    handleFieldChange(fieldKey, suggestion[fieldKey]);
+    handleFieldChange(fieldKey, stripMarkdown(suggestion[fieldKey]));
     setSuggestion(prev => ({ ...prev, [fieldKey]: null }));
     // Auto-advance in guided mode after a short pause so user sees the field fill
     if (mode === "guided" && guidedStep < GUIDED_SEQUENCE.length - 1) {
