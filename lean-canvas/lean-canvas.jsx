@@ -14,10 +14,10 @@ const USE_PROXY = true;
 const GOOGLE_FONT = `@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');`;
 
 const CONTEXTS = {
-  digital:   { label: "🛒 Digitales Produkt",        example: "E-Bike Konfigurator für Online-Shop", short: "E-Bike Konfigurator" },
-  service:   { label: "🎨 Dienstleistung",             example: "KI-Workshop für Projektmanager",      short: "KI-Workshop" },
-  nonprofit: { label: "🌱 Non-Profit / Social Impact", example: "Inklusiver Spielplatz-Finder",        short: "Spielplatz-Finder", isNonprofit: true },
-  physical:  { label: "🏭 Physisches Produkt",         example: "Modulares Hochbeet für Balkone",      short: "Modulares Hochbeet" },
+  digital:   { label: "🛒 Digitales Produkt",        category: "digitales Produkt (App, SaaS, Online-Service, Marktplatz)", example: "E-Bike Konfigurator für Online-Shop", short: "E-Bike Konfigurator" },
+  service:   { label: "🎨 Dienstleistung",             category: "Dienstleistung (Beratung, Workshop, Coaching, Service)",      example: "KI-Workshop für Projektmanager",      short: "KI-Workshop" },
+  nonprofit: { label: "🌱 Non-Profit / Social Impact", category: "Non-Profit / Social-Impact-Projekt",                          example: "Inklusiver Spielplatz-Finder",        short: "Spielplatz-Finder", isNonprofit: true },
+  physical:  { label: "🏭 Physisches Produkt",         category: "physisches Produkt",                                          example: "Modulares Hochbeet für Balkone",      short: "Modulares Hochbeet" },
 };
 
 const FIELD_HELP = {
@@ -60,7 +60,9 @@ Wenn der User bereits Inhalt im Feld hat: beziehe dich KONKRET auf diesen Inhalt
 
 Wenn der User antwortet und du genug Substanz hast (nach 2-4 Turns), schlage eine knappe, prägnante Formulierung für das Feld vor. Format: zuerst max. 1 Satz Kommentar, dann auf neuer Zeile "💡 Vorschlag:" gefolgt vom konkreten Text (max 3-4 Sätze oder Stichpunkte).
 
-Wenn der User signalisiert, dass das Feld fertig ist ("passt", "okay", "fertig", "weiter", übernimmt den Vorschlag) oder zwei Mal in Folge zustimmt, dränge NICHT weiter. Antworte einmal kurz bestätigend (max 1 Satz, ohne neue Frage) und überlasse dem User die Initiative. Keine zusätzlichen Schärfungsfragen, keine "noch ein Punkt…".`;
+Wenn der User signalisiert, dass das Feld fertig ist ("passt", "okay", "fertig", "weiter", übernimmt den Vorschlag) oder zwei Mal in Folge zustimmt, dränge NICHT weiter. Antworte einmal kurz bestätigend (max 1 Satz, ohne neue Frage) und überlasse dem User die Initiative. Keine zusätzlichen Schärfungsfragen, keine "noch ein Punkt…".
+
+WICHTIG zum Projektkontext: Beziehe dich AUSSCHLIESSLICH auf das, was der Nutzer geschrieben hat. Erfinde KEINE Beispielprojekte (kein E-Bike, kein Workshop, kein Hochbeet etc., außer der Nutzer hat das selbst genannt). Wenn der Nutzer noch nichts geschrieben hat, frage offen nach seinem Projekt — verwende KEIN Platzhalter-Beispiel.`;
 
 // ── Inline markdown helper (handles **bold**) ─────────────────────────────────
 function renderInlineMarkdown(text) {
@@ -508,7 +510,7 @@ export default function LeanCanvas() {
     const currentValueNote = currentValue
       ? `\n\nDer Nutzer hat bereits geschrieben: "${currentValue}". Stelle EINE gezielte Frage, die genau diesen Inhalt schärft. Keine Würdigung, keine Wiederholung der Leitfrage.`
       : ` Stelle EINE einstiegsfreundliche Frage, um das Feld zu starten.`;
-    const prompt = `Feld: "${fieldLabel}". Kontext: ${CONTEXTS[context].example}. ${help.explanation} Leitfrage: ${help.question}${contextNote}${currentValueNote}`;
+    const prompt = `Feld: "${fieldLabel}". Projekt-Kategorie: ${CONTEXTS[context].category}. ${help.explanation} Leitfrage: ${help.question}${contextNote}${currentValueNote}`;
 
     setChatMessages(prev => ({ ...prev, [fieldKey]: [] }));
     setLoading(true);
@@ -544,7 +546,7 @@ export default function LeanCanvas() {
     const currentVal = fields[fieldKey]?.trim();
     const currentValPrefix = currentVal ? ` Der Nutzer hat aktuell folgenden Inhalt im Feld: "${currentVal}".` : "";
     const apiMessages = [
-      { role: "user", content: `Feld: "${getFieldLabel(fieldKey)}". Kontext: ${CONTEXTS[context].example}. ${help.explanation}${currentValPrefix}` },
+      { role: "user", content: `Feld: "${getFieldLabel(fieldKey)}". Projekt-Kategorie: ${CONTEXTS[context].category}. ${help.explanation}${currentValPrefix}` },
       ...newMessages,
     ];
 
@@ -590,7 +592,7 @@ export default function LeanCanvas() {
   const downloadAsMarkdown = () => {
     const ctx = CONTEXTS[context];
     const today = new Date().toISOString().slice(0, 10);
-    const lines = [`# Lean Canvas — ${ctx.example}`, "", `*${today}*`, ""];
+    const lines = [`# Lean Canvas`, "", `*${ctx.label} · ${today}*`, ""];
     GUIDED_SEQUENCE.forEach(k => {
       lines.push(`## ${getFieldLabel(k)}`, "", fields[k]?.trim() || "_(leer)_", "");
     });
@@ -598,7 +600,7 @@ export default function LeanCanvas() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `lean-canvas-${ctx.short.toLowerCase().replace(/\s+/g, "-")}-${today}.md`;
+    a.download = `lean-canvas-${today}.md`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
